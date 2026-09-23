@@ -123,6 +123,35 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
   ];
 
   const SLA_DAYS = 14;
+  const SLA_RULES_MAP: Record<string, number> = {
+    KATM: 1,
+    KATMIND: 1,
+    KBSM: 3,
+    KBSMIND: 3,
+    KKMR: 3,
+    KKMRIND: 3,
+    KMDT: 5,
+    KMTA: 7,
+    KPMR: 4,
+    KPMRIND: 4,
+    KPPR: 6,
+    TR09: 12,
+    TRO9: 12,
+    TR09IND: 12,
+    TRO9IND: 12,
+  };
+
+  function getSlaDaysForCase(category: string): number {
+    const key = (category || "").trim().toUpperCase();
+    if (SLA_RULES_MAP[key] !== undefined) {
+      return SLA_RULES_MAP[key];
+    }
+    const cleanKey = key.replace(/IND$/, "");
+    if (SLA_RULES_MAP[cleanKey] !== undefined) {
+      return SLA_RULES_MAP[cleanKey];
+    }
+    return 14; // Standar default SLA
+  }
   let MAX_PER_DAY = 10;
 
   let complaints: ComplaintItem[] = [];
@@ -997,7 +1026,8 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
     const scoreCustImpact = item.urgent ? 3 : cInfo.custImpact || 1;
 
     const start = new Date(item.receivedAt);
-    const deadline = new Date(start.getTime() + SLA_DAYS * 24 * 60 * 60 * 1000);
+    const caseSlaDays = getSlaDaysForCase(item.category);
+    const deadline = new Date(start.getTime() + caseSlaDays * 24 * 60 * 60 * 1000);
     const diffDays = Math.ceil(
       (deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -1071,9 +1101,10 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
     return null;
   }
 
-  function getSLACountdown(receivedAt: string) {
+  function getSLACountdown(receivedAt: string, category?: string) {
+    const caseSlaDays = category ? getSlaDaysForCase(category) : SLA_DAYS;
     const deadline = new Date(
-      new Date(receivedAt).getTime() + SLA_DAYS * 24 * 60 * 60 * 1000
+      new Date(receivedAt).getTime() + caseSlaDays * 24 * 60 * 60 * 1000
     );
     const diffMs = deadline.getTime() - new Date().getTime();
     if (diffMs <= 0) return { text: "OVERDUE", isOverdue: true };
@@ -1087,7 +1118,8 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
 
   function getDeadlineInfo(item: ComplaintItem) {
     const start = new Date(item.receivedAt);
-    const deadline = new Date(start.getTime() + SLA_DAYS * 24 * 60 * 60 * 1000);
+    const caseSlaDays = getSlaDaysForCase(item.category);
+    const deadline = new Date(start.getTime() + caseSlaDays * 24 * 60 * 60 * 1000);
     const now = new Date();
     const diffMs = deadline.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -10538,7 +10570,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
     const isDone = item.status === "selesai";
     const coordsObj = parseCoords(item.coords);
     const deadlineInfo = getDeadlineInfo(item);
-    const slaCountdown = getSLACountdown(item.receivedAt);
+    const slaCountdown = getSLACountdown(item.receivedAt, item.category);
     const mapContainerId = "map-" + item.id;
     const caseDetails = catInfo(item.category);
 
