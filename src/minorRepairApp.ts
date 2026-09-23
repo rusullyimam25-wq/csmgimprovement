@@ -141,18 +141,43 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
   let currentTab: "board" | "map" | "analytics" | "calendar" | "mobile" = "board";
 
   // Mobile Officer Companion State
-  let selectedMobileOfficer: string = OFFICERS[0];
+  const STORED_OFFICER_KEY = "aetra_mobile_selected_officer";
+  let storedOfficer = "";
+  try {
+    storedOfficer = localStorage.getItem(STORED_OFFICER_KEY) || "";
+  } catch (e) {}
+  let selectedMobileOfficer: string = (storedOfficer && OFFICERS.includes(storedOfficer)) ? storedOfficer : OFFICERS[0];
   let mobileAppSubTab: "tasks" | "route" | "workload" | "profile" = "tasks";
   let mobileFilterStatus: "all" | "urgent" | "proses" | "selesai" = "all";
   let mobileDeviceMode: "phone" | "fullscreen" = "phone";
   let mobileLastSyncTime: string = "Baru saja";
   let mobileGuideOpen: boolean = false;
+  let mobileSearchQuery: string = "";
+  let pwaDismissed: boolean = false;
+  try {
+    pwaDismissed = sessionStorage.getItem("aetra_pwa_dismissed") === "true";
+  } catch (e) {}
+  let deferredPwaPrompt: any = null;
+  let pwaGuideModalOpen: boolean = false;
 
-  if (
-    typeof window !== "undefined" &&
-    (window.location.hash === "#mobile" ||
-      window.location.search.includes("mode=mobile"))
-  ) {
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeinstallprompt", (e: any) => {
+      e.preventDefault();
+      deferredPwaPrompt = e;
+    });
+  }
+
+  function checkIsMobileMode(): boolean {
+    if (typeof window === "undefined") return false;
+    const hash = window.location.hash;
+    if (hash === "#desktop") return false;
+    if (hash === "#mobile" || window.location.search.includes("mode=mobile")) return true;
+    const isSmall = window.innerWidth <= 850;
+    const isTouch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return isSmall || isTouch;
+  }
+
+  if (checkIsMobileMode()) {
     currentTab = "mobile";
   }
 
@@ -507,12 +532,12 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
       // @ts-ignore
       (window as any).Swal.fire({
         icon: "success",
-        title: "⚡ Pengalihan Otomatis Berhasil!",
+        title: "âš¡ Pengalihan Otomatis Berhasil!",
         html: `
           <div style="text-align:left; font-size:12.5px; line-height:1.6; color:#334155;">
             <p>Work Order <b>${target.id}</b> telah dialihkan ke teknisi terdekat:</p>
             <div style="background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:10px; margin:8px 0;">
-              <b style="color:#166534; font-size:13.5px;">👷 ${targetOfficer}</b><br/>
+              <b style="color:#166534; font-size:13.5px;">ðŸ‘· ${targetOfficer}</b><br/>
               <span style="font-size:11.5px; color:#15803D;">${reasonSummary}</span>
             </div>
             <p style="font-size:11px; color:#64748B; margin-top:6px;">
@@ -551,7 +576,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
       }
 
       summaryList.push(
-        `• <b>${ticket.id}</b>: ${oldOfficer} ➔ <b>${targetOfficer}</b> (~${b.suggestion.bestCandidate.distanceKm} km)`
+        `â€¢ <b>${ticket.id}</b>: ${oldOfficer} âž” <b>${targetOfficer}</b> (~${b.suggestion.bestCandidate.distanceKm} km)`
       );
       reassignCount++;
 
@@ -582,7 +607,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
       // @ts-ignore
       (window as any).Swal.fire({
         icon: "success",
-        title: "⚡ Pengalihan Massal Selesai!",
+        title: "âš¡ Pengalihan Massal Selesai!",
         html: `
           <div style="text-align:left; font-size:12.5px; line-height:1.6; color:#334155;">
             <p>Berhasil mengalihkan <b>${reassignCount}</b> Work Order prioritas tinggi yang melewati batas SLA ke teknisi terdekat yang tersedia:</p>
@@ -617,7 +642,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
         // @ts-ignore
         (window as any).Swal.fire({
           icon: "info",
-          title: "🧪 Simulasi SLA Diaktifkan",
+          title: "ðŸ§ª Simulasi SLA Diaktifkan",
           text: `Tiket ${urgentActive.id} (${urgentActive.customer}) disimulasikan telah melewati batas SLA (+8 jam overdue). Sistem proaktif menampilkan peringatan dan saran teknisi terdekat.`,
           timer: 2500,
           showConfirmButton: false,
@@ -651,7 +676,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
         // @ts-ignore
         (window as any).Swal.fire({
           icon: "warning",
-          title: "🚨 Kasus Simulasi Ditambahkan",
+          title: "ðŸš¨ Kasus Simulasi Ditambahkan",
           text: `Kasus darurat baru ${simId} ditambahkan (34 jam lalu). Sistem proaktif mendeteksi batas SLA terlampaui dan menyarankan teknisi terdekat.`,
           timer: 2500,
           showConfirmButton: false,
@@ -675,7 +700,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
     updateLiveClock();
     const badges = document.querySelectorAll(".live-clock-badge");
     badges.forEach((b) => {
-      b.textContent = `🕒 ${currentTimeString}`;
+      b.textContent = `ðŸ•’ ${currentTimeString}`;
     });
     const nowSec = new Date().getSeconds();
     if (nowSec % 30 === 0) {
@@ -1057,7 +1082,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
     const hours = Math.floor(
       (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
     );
-    return { text: `⏳ Sisa ${days}d ${hours}h`, isOverdue: false };
+    return { text: `â³ Sisa ${days}d ${hours}h`, isOverdue: false };
   }
 
   function getDeadlineInfo(item: ComplaintItem) {
@@ -2208,7 +2233,7 @@ Catatan: ${item.desc || "-"}`;
         el(
           "h2",
           { style: "margin:0; font-size:14px; font-weight:800; color:#1E293B;" },
-          editing ? `✏️ Ubah Komplain Work Order ${editing.id}` : "➕ Tambah Work Order / Komplain Baru"
+          editing ? `âœï¸ Ubah Komplain Work Order ${editing.id}` : "âž• Tambah Work Order / Komplain Baru"
         ),
         !editing
           ? el(
@@ -2231,7 +2256,7 @@ Catatan: ${item.desc || "-"}`;
                   formErrorEl.style.display = "none";
                 },
               },
-              "⚡ Isi Contoh Data Cepat"
+              "âš¡ Isi Contoh Data Cepat"
             )
           : null
       ),
@@ -2281,7 +2306,7 @@ Catatan: ${item.desc || "-"}`;
               if (e && e.preventDefault) e.preventDefault();
               const valCust = customerInput ? customerInput.value.trim() : "";
               if (!valCust) {
-                formErrorEl.innerText = "⚠️ Nama Pelanggan wajib diisi sebelum menyimpan!";
+                formErrorEl.innerText = "âš ï¸ Nama Pelanggan wajib diisi sebelum menyimpan!";
                 formErrorEl.style.display = "block";
                 customerInput.focus();
                 // @ts-ignore
@@ -2556,7 +2581,7 @@ Catatan: ${item.desc || "-"}`;
           el(
             "div",
             { style: "display:flex; align-items:center; gap:8px;" },
-            el("span", { style: "font-size:20px;" }, "✅"),
+            el("span", { style: "font-size:20px;" }, "âœ…"),
             el(
               "div",
               {},
@@ -2568,7 +2593,7 @@ Catatan: ${item.desc || "-"}`;
               el(
                 "span",
                 { style: "font-size:11px; opacity:0.9;" },
-                target ? `${target.customer} • ${target.area || "Area Lapangan"}` : "Penyelesaian Langsung dari HP"
+                target ? `${target.customer} â€¢ ${target.area || "Area Lapangan"}` : "Penyelesaian Langsung dari HP"
               )
             )
           ),
@@ -2581,7 +2606,7 @@ Catatan: ${item.desc || "-"}`;
                 render();
               },
             },
-            "✕"
+            "âœ•"
           )
         ),
 
@@ -2604,7 +2629,7 @@ Catatan: ${item.desc || "-"}`;
                   el("span", { style: "font-weight:800; color:var(--ink);" }, target.customer),
                   el("span", { style: "font-weight:700; color:#0284C7; font-family:monospace;" }, target.meterId ? `Mtr: ${target.meterId}` : "")
                 ),
-                el("div", { style: "color:var(--ink-soft); font-size:11px;" }, `📍 ${target.address || "-"}`),
+                el("div", { style: "color:var(--ink-soft); font-size:11px;" }, `ðŸ“ ${target.address || "-"}`),
                 el(
                   "div",
                   { style: "color:var(--accent); font-weight:700; font-size:11px; margin-top:2px;" },
@@ -2687,7 +2712,7 @@ Catatan: ${item.desc || "-"}`;
                       }
                     },
                   },
-                  el("span", {}, "🔧"),
+                  el("span", {}, "ðŸ”§"),
                   el("span", {}, mat)
                 );
                 return matBtn;
@@ -2706,7 +2731,7 @@ Catatan: ${item.desc || "-"}`;
               el(
                 "label",
                 { style: "display:block; font-size:11px; font-weight:700; color:var(--ink); margin-bottom:4px;" },
-                "📸 Foto Sebelum (Before):"
+                "ðŸ“¸ Foto Sebelum (Before):"
               ),
               imgBeforePreview,
               el(
@@ -2720,7 +2745,7 @@ Catatan: ${item.desc || "-"}`;
                     style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; background:#0284C7; color:#FFF; border:none; border-radius:6px; cursor:pointer;",
                     onclick: () => camBeforeInput.click(),
                   },
-                  "📷 Kamera"
+                  "ðŸ“· Kamera"
                 ),
                 el(
                   "button",
@@ -2730,7 +2755,7 @@ Catatan: ${item.desc || "-"}`;
                     style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; cursor:pointer;",
                     onclick: () => fileBeforeInput.click(),
                   },
-                  "📁 Galeri"
+                  "ðŸ“ Galeri"
                 ),
                 camBeforeInput,
                 fileBeforeInput
@@ -2743,7 +2768,7 @@ Catatan: ${item.desc || "-"}`;
               el(
                 "label",
                 { style: "display:block; font-size:11px; font-weight:700; color:var(--ink); margin-bottom:4px;" },
-                "📸 Foto Sesudah (After):"
+                "ðŸ“¸ Foto Sesudah (After):"
               ),
               imgAfterPreview,
               el(
@@ -2757,7 +2782,7 @@ Catatan: ${item.desc || "-"}`;
                     style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; background:#10B981; color:#FFF; border:none; border-radius:6px; cursor:pointer;",
                     onclick: () => camAfterInput.click(),
                   },
-                  "📷 Kamera"
+                  "ðŸ“· Kamera"
                 ),
                 el(
                   "button",
@@ -2767,7 +2792,7 @@ Catatan: ${item.desc || "-"}`;
                     style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; cursor:pointer;",
                     onclick: () => fileAfterInput.click(),
                   },
-                  "📁 Galeri"
+                  "ðŸ“ Galeri"
                 ),
                 camAfterInput,
                 fileAfterInput
@@ -2785,7 +2810,7 @@ Catatan: ${item.desc || "-"}`;
               el(
                 "label",
                 { style: "font-size:11px; font-weight:700; color:var(--ink);" },
-                "✍️ Tanda Tangan Pelanggan Digital (Di Layar HP):"
+                "âœï¸ Tanda Tangan Pelanggan Digital (Di Layar HP):"
               ),
               el(
                 "button",
@@ -2798,7 +2823,7 @@ Catatan: ${item.desc || "-"}`;
                     hasSignature = false;
                   },
                 },
-                "🧹 Bersihkan TTD"
+                "ðŸ§¹ Bersihkan TTD"
               )
             ),
             canvas,
@@ -2881,7 +2906,7 @@ Catatan: ${item.desc || "-"}`;
                   // @ts-ignore
                   (window as any).Swal.fire({
                     icon: "success",
-                    title: "WO Berhasil Diselesaikan! 🎉",
+                    title: "WO Berhasil Diselesaikan! ðŸŽ‰",
                     html: `
                       <div style="font-size:12px; color:#334155; line-height:1.5;">
                         <p>Tiket <b>${finishTargetId}</b> berhasil diselesaikan langsung dari handphone!</p>
@@ -2895,321 +2920,8 @@ Catatan: ${item.desc || "-"}`;
                 render();
               },
             },
-            "✅ Selesaikan & Simpan WO"
+            "âœ… Selesaikan & Simpan WO"
           )
-        )
-      )
-    );
-  }
-    if (!finishModalOpen || !finishTargetId) return el("div");
-
-    let photoBeforeData: string | null = null;
-    let photoAfterData: string | null = null;
-
-    const target = complaints.find((c) => c.id === finishTargetId);
-    if (target) {
-      photoBeforeData = target.photoBefore || null;
-      photoAfterData = target.photoAfter || null;
-    }
-
-    function handleImageFile(file: File | undefined, callback: (url: string) => void) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 800;
-
-          if (width > height && width > maxDim) {
-            height *= maxDim / width;
-            width = maxDim;
-          } else if (height > maxDim) {
-            width *= maxDim / height;
-            height = maxDim;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            callback(canvas.toDataURL("image/jpeg", 0.7));
-          }
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    const camBeforeInput = el("input", {
-      type: "file",
-      accept: "image/*",
-      capture: "environment",
-      style: "display:none;",
-    }) as HTMLInputElement;
-    const fileBeforeInput = el("input", {
-      type: "file",
-      accept: "image/*",
-      style: "display:none;",
-    }) as HTMLInputElement;
-    const imgBeforePreview = el("img", {
-      class: "photo-preview-img",
-      src: photoBeforeData || "",
-    }) as HTMLImageElement;
-    if (photoBeforeData) imgBeforePreview.style.display = "block";
-
-    camBeforeInput.onchange = (e: any) =>
-      handleImageFile(e.target.files[0], (url) => {
-        photoBeforeData = url;
-        imgBeforePreview.src = url;
-        imgBeforePreview.style.display = "block";
-      });
-    fileBeforeInput.onchange = (e: any) =>
-      handleImageFile(e.target.files[0], (url) => {
-        photoBeforeData = url;
-        imgBeforePreview.src = url;
-        imgBeforePreview.style.display = "block";
-      });
-
-    const camAfterInput = el("input", {
-      type: "file",
-      accept: "image/*",
-      capture: "environment",
-      style: "display:none;",
-    }) as HTMLInputElement;
-    const fileAfterInput = el("input", {
-      type: "file",
-      accept: "image/*",
-      style: "display:none;",
-    }) as HTMLInputElement;
-    const imgAfterPreview = el("img", {
-      class: "photo-preview-img",
-      src: photoAfterData || "",
-    }) as HTMLImageElement;
-    if (photoAfterData) imgAfterPreview.style.display = "block";
-
-    camAfterInput.onchange = (e: any) =>
-      handleImageFile(e.target.files[0], (url) => {
-        photoAfterData = url;
-        imgAfterPreview.src = url;
-        imgAfterPreview.style.display = "block";
-      });
-    fileAfterInput.onchange = (e: any) =>
-      handleImageFile(e.target.files[0], (url) => {
-        photoAfterData = url;
-        imgAfterPreview.src = url;
-        imgAfterPreview.style.display = "block";
-      });
-
-    const canvas = el("canvas", {
-      class: "signature-pad",
-      width: "340",
-      height: "120",
-      style: "touch-action: none;",
-    }) as HTMLCanvasElement;
-    const ctx = canvas.getContext("2d")!;
-
-    let drawing = false;
-    let hasSignature = false;
-
-    function getCoords(e: MouseEvent | TouchEvent) {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
-    }
-
-    function startDrawing(e: MouseEvent | TouchEvent) {
-      drawing = true;
-      hasSignature = true;
-      const pos = getCoords(e);
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
-      if (e.cancelable) e.preventDefault();
-    }
-
-    function draw(e: MouseEvent | TouchEvent) {
-      if (!drawing) return;
-      const pos = getCoords(e);
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = isDarkMode ? "#38BDF8" : "#0F172A";
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-      if (e.cancelable) e.preventDefault();
-    }
-
-    function stopDrawing() {
-      drawing = false;
-      ctx.beginPath();
-    }
-
-    canvas.addEventListener("mousedown", startDrawing);
-    canvas.addEventListener("mousemove", draw);
-    canvas.addEventListener("mouseup", stopDrawing);
-    canvas.addEventListener("mouseleave", stopDrawing);
-
-    canvas.addEventListener("touchstart", startDrawing, { passive: false });
-    canvas.addEventListener("touchmove", draw, { passive: false });
-    canvas.addEventListener("touchend", stopDrawing);
-
-    return el(
-      "div",
-      {
-        class: "form-panel open",
-        style: "background:var(--panel); border:1px solid var(--accent);",
-      },
-      el(
-        "h2",
-        { style: "margin-top:0;" },
-        `📸 Bukti Pengerjaan & Tanda Tangan (${finishTargetId})`
-      ),
-      el(
-        "div",
-        { class: "field-row" },
-        el(
-          "div",
-          { class: "field" },
-          el("label", {}, "Foto Sebelum (Before):"),
-          el(
-            "div",
-            { class: "photo-upload-box" },
-            imgBeforePreview,
-            el(
-              "div",
-              { class: "photo-btn-group" },
-              el(
-                "label",
-                { class: "btn-cam", onclick: () => camBeforeInput.click() },
-                "📷 Kamera"
-              ),
-              el(
-                "label",
-                { class: "btn-file", onclick: () => fileBeforeInput.click() },
-                "📁 File"
-              ),
-              camBeforeInput,
-              fileBeforeInput
-            )
-          )
-        ),
-        el(
-          "div",
-          { class: "field" },
-          el("label", {}, "Foto Sesudah (After):"),
-          el(
-            "div",
-            { class: "photo-upload-box" },
-            imgAfterPreview,
-            el(
-              "div",
-              { class: "photo-btn-group" },
-              el(
-                "label",
-                { class: "btn-cam", onclick: () => camAfterInput.click() },
-                "📷 Kamera"
-              ),
-              el(
-                "label",
-                { class: "btn-file", onclick: () => fileAfterInput.click() },
-                "📁 File"
-              ),
-              camAfterInput,
-              fileAfterInput
-            )
-          )
-        )
-      ),
-      el(
-        "div",
-        { class: "field", style: "margin-bottom:10px; margin-top:6px;" },
-        el("label", {}, "Tanda Tangan Pelanggan Digital:"),
-        canvas,
-        el(
-          "button",
-          {
-            class: "btn-secondary",
-            style: "width:100px; margin-top:4px; font-size:10px;",
-            onclick: () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              hasSignature = false;
-            },
-          },
-          "🧹 Hapus TTD"
-        )
-      ),
-      el(
-        "div",
-        { style: "display:flex; gap:8px;" },
-        el(
-          "button",
-          {
-            class: "btn-primary",
-            onclick: async () => {
-              if (!hasSignature) {
-                // @ts-ignore
-                if ((window as any).Swal) {
-                  // @ts-ignore
-                  (window as any).Swal.fire(
-                    "Peringatan",
-                    "Harap bubuhkan tanda tangan pelanggan terlebih dahulu!",
-                    "warning"
-                  );
-                }
-                return;
-              }
-
-              if (target) {
-                target.status = "selesai";
-                target.photoBefore = photoBeforeData;
-                target.photoAfter = photoAfterData;
-                saveLocal();
-                const fullDesc = buildFullDescription(
-                  target.desc,
-                  target.address,
-                  target.phone,
-                  target.rescheduledDate,
-                  target.officer,
-                  target.photoBefore,
-                  target.photoAfter
-                );
-
-                if (sb) {
-                  await sb
-                    .from(TABLE)
-                    .update({ status: "selesai", description: fullDesc })
-                    .eq("id", target.id);
-                }
-              }
-              finishModalOpen = false;
-              // @ts-ignore
-              if ((window as any).Swal) {
-                // @ts-ignore
-                (window as any).Swal.fire(
-                  "Selesai!",
-                  "Work Order telah diselesaikan, bukti foto & TTD terverifikasi.",
-                  "success"
-                );
-              }
-              render();
-            },
-          },
-          "Verifikasi & Selesai"
-        ),
-        el(
-          "button",
-          {
-            class: "btn-secondary",
-            onclick: () => {
-              finishModalOpen = false;
-              render();
-            },
-          },
-          "Batal"
         )
       )
     );
@@ -3237,7 +2949,7 @@ Catatan: ${item.desc || "-"}`;
       el(
         "h2",
         { style: "color:#0369A1; margin-top:0;" },
-        "📜 Cari History Komplain Pelanggan"
+        "ðŸ“œ Cari History Komplain Pelanggan"
       ),
       el(
         "div",
@@ -3361,7 +3073,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       el(
         "h2",
         { style: "color:#6B21A8; margin-top:0;" },
-        "🔄 Auto Inbound Email Webhook & Converter"
+        "ðŸ”„ Auto Inbound Email Webhook & Converter"
       ),
       emailTextArea,
       el(
@@ -3377,7 +3089,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "⚡ Ekstrak Email Otomatis"
+          "âš¡ Ekstrak Email Otomatis"
         ),
         el(
           "button",
@@ -3432,7 +3144,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "h3",
             {},
-            `🔍 Detail Lengkap Work Order: ${item.id}`,
+            `ðŸ” Detail Lengkap Work Order: ${item.id}`,
             el(
               "span",
               {
@@ -3456,7 +3168,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "✕"
+            "âœ•"
           )
         ),
         el(
@@ -3499,7 +3211,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               el(
                 "span",
                 { style: "font-weight:700; color:var(--accent); font-size:13px;" },
-                item.officer ? `👷 ${item.officer}` : "⚠️ Belum Ditugaskan"
+                item.officer ? `ðŸ‘· ${item.officer}` : "âš ï¸ Belum Ditugaskan"
               )
             ),
             el(
@@ -3513,7 +3225,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               el(
                 "span",
                 { style: "font-size:12px;" },
-                `${item.area || "Cikupa"} • ${deadline.statusText}`
+                `${item.area || "Cikupa"} â€¢ ${deadline.statusText}`
               )
             )
           ),
@@ -3537,7 +3249,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   el(
                     "span",
                     { style: "font-size:10.5px; color:var(--ink-soft);" },
-                    `📍 ${coordsObj.lat}, ${coordsObj.lng}`
+                    `ðŸ“ ${coordsObj.lat}, ${coordsObj.lng}`
                   ),
                   el(
                     "a",
@@ -3548,7 +3260,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       class: "btn-nav-route",
                       style: "font-size:10px; padding:2px 8px;",
                     },
-                    "Buka Google Maps ↗"
+                    "Buka Google Maps â†—"
                   )
                 )
               : null
@@ -3696,7 +3408,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       class: "btn-wa",
                       style: "font-size:11px; padding:4px 10px;",
                     },
-                    "💬 Beritahu: Menuju Lokasi"
+                    "ðŸ’¬ Beritahu: Menuju Lokasi"
                   ),
                   el(
                     "a",
@@ -3707,7 +3419,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       class: "btn-wa",
                       style: "font-size:11px; padding:4px 10px; background:#0D9488;",
                     },
-                    "💬 Beritahu: Pekerjaan Selesai"
+                    "ðŸ’¬ Beritahu: Pekerjaan Selesai"
                   )
                 )
               )
@@ -3761,7 +3473,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "🖨️ Cetak Lembar SPK"
+            "ðŸ–¨ï¸ Cetak Lembar SPK"
           ),
           el(
             "button",
@@ -3774,7 +3486,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "✏️ Edit Data"
+            "âœï¸ Edit Data"
           ),
           el(
             "button",
@@ -3821,7 +3533,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "h3",
             {},
-            `🖨️ Lembar Kerja SPK Minor Repair (${targetItems.length} Dokumen)`
+            `ðŸ–¨ï¸ Lembar Kerja SPK Minor Repair (${targetItems.length} Dokumen)`
           ),
           el(
             "div",
@@ -3835,7 +3547,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   window.print();
                 },
               },
-              "🖨️ Print / Cetak PDF"
+              "ðŸ–¨ï¸ Print / Cetak PDF"
             ),
             el(
               "button",
@@ -3847,7 +3559,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "✕"
+              "âœ•"
             )
           )
         ),
@@ -4031,7 +3743,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     el(
                       "td",
                       { colspan: "3", style: "padding:4px 0;" },
-                      `[${item.category}] ${caseDetails.label} — ${
+                      `[${item.category}] ${caseDetails.label} â€” ${
                         item.desc || "-"
                       }`
                     )
@@ -4143,7 +3855,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 window.print();
               },
             },
-            "🖨️ Cetak / Simpan PDF Sekarang"
+            "ðŸ–¨ï¸ Cetak / Simpan PDF Sekarang"
           ),
           el(
             "button",
@@ -4241,7 +3953,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         el(
           "span",
           { class: "batch-count-badge" },
-          `☑️ ${selectedTicketIds.size} Terpilih`
+          `â˜‘ï¸ ${selectedTicketIds.size} Terpilih`
         ),
         el(
           "button",
@@ -4259,7 +3971,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             },
           },
           selectedTicketIds.size === visibleItems.length
-            ? "✕ Batalkan Pilihan"
+            ? "âœ• Batalkan Pilihan"
             : `Pilih Semua (${visibleItems.length})`
         )
       ),
@@ -4289,7 +4001,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 "Ubah status semua Work Order terpilih menjadi 'Dalam Proses' (In Progress)",
               onclick: () => bulkUpdateTicketStatus(selectedIds, "proses"),
             },
-            "▶️ In Progress"
+            "â–¶ï¸ In Progress"
           ),
           el(
             "button",
@@ -4299,7 +4011,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 "Ubah status semua Work Order terpilih menjadi 'Menunggu' (Pending)",
               onclick: () => bulkUpdateTicketStatus(selectedIds, "menunggu"),
             },
-            "⏳ Pending"
+            "â³ Pending"
           ),
           el(
             "button",
@@ -4309,7 +4021,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 "Ubah status semua Work Order terpilih menjadi 'Selesai' (Completed)",
               onclick: () => bulkUpdateTicketStatus(selectedIds, "selesai"),
             },
-            "✅ Selesai"
+            "âœ… Selesai"
           )
         ),
         // Officer Assignment Dropdown
@@ -4329,7 +4041,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 // @ts-ignore
                 (window as any).Swal.fire(
                   "Ditugaskan!",
-                  `${selectedIds.length} Work Order berhasil dialokasikan ke 👷 ${targetOff}.`,
+                  `${selectedIds.length} Work Order berhasil dialokasikan ke ðŸ‘· ${targetOff}.`,
                   "success"
                 );
               }
@@ -4337,8 +4049,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          el("option", { value: "" }, "👷 Tugaskan Terpilih ke..."),
-          ...OFFICERS.map((off) => el("option", { value: off }, `👷 ${off}`))
+          el("option", { value: "" }, "ðŸ‘· Tugaskan Terpilih ke..."),
+          ...OFFICERS.map((off) => el("option", { value: off }, `ðŸ‘· ${off}`))
         ),
         el(
           "button",
@@ -4352,7 +4064,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          `🖨️ Cetak SPK (${selectedTicketIds.size})`
+          `ðŸ–¨ï¸ Cetak SPK (${selectedTicketIds.size})`
         ),
         el(
           "button",
@@ -4382,7 +4094,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "🗑️ Hapus"
+          "ðŸ—‘ï¸ Hapus"
         ),
         el(
           "button",
@@ -4394,7 +4106,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "✕ Batal"
+          "âœ• Batal"
         )
       )
     );
@@ -4532,11 +4244,11 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
     });
     const stopsText = orderedTickets
       .map((t, i) => {
-        return `${i + 1}. [${t.id}] ${t.customer}\n   📍 ${t.address || t.area || "-"}\n   🔧 ${t.category} ${t.urgent ? "🚨(URGENT)" : ""}`;
+        return `${i + 1}. [${t.id}] ${t.customer}\n   ðŸ“ ${t.address || t.area || "-"}\n   ðŸ”§ ${t.category} ${t.urgent ? "ðŸš¨(URGENT)" : ""}`;
       })
       .join("\n\n");
 
-    const waMsg = `*📋 RUTE HARIAN WORK ORDER MINOR REPAIR*\nPetugas: 👷 ${officer}\nTanggal: 📅 ${dateStr}\nTotal Kasus: ${orderedTickets.length} Titik (${urgentCount} Kasus Urgent)\nEstimasi Jarak: 🚗 ${totalDistanceKm} km (~${Math.floor(estTotalMinutes / 60)} jam ${estTotalMinutes % 60} mnt)\n\n*Urutan Kunjungan (Itinerary):*\n${stopsText}\n\n*Buka Rute Navigasi Google Maps:*\n${googleMapsUrl}\n\n_Mohon utamakan keselamatan kerja & K3!_`;
+    const waMsg = `*ðŸ“‹ RUTE HARIAN WORK ORDER MINOR REPAIR*\nPetugas: ðŸ‘· ${officer}\nTanggal: ðŸ“… ${dateStr}\nTotal Kasus: ${orderedTickets.length} Titik (${urgentCount} Kasus Urgent)\nEstimasi Jarak: ðŸš— ${totalDistanceKm} km (~${Math.floor(estTotalMinutes / 60)} jam ${estTotalMinutes % 60} mnt)\n\n*Urutan Kunjungan (Itinerary):*\n${stopsText}\n\n*Buka Rute Navigasi Google Maps:*\n${googleMapsUrl}\n\n_Mohon utamakan keselamatan kerja & K3!_`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(waMsg)}`;
 
     return {
@@ -4573,7 +4285,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       ).length;
       // @ts-ignore
       (window as any).Swal.fire({
-        title: "⚡ Rute Harian Berhasil Dibuat!",
+        title: "âš¡ Rute Harian Berhasil Dibuat!",
         html: `Saran rute patroli harian telah dihitung optimal untuk <b>${activeCount} petugas lapangan aktif</b> berdasarkan kedekatan lokasi dari Kantor Cikupa & penanganan kasus urgent terlebih dahulu.`,
         icon: "success",
         confirmButtonColor: "#2563EB",
@@ -4617,7 +4329,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "h3",
               { style: "margin:0; font-size:16px; font-weight:800;" },
-              `📄 Lembar Manifest Rute Harian - ${officer}`
+              `ðŸ“„ Lembar Manifest Rute Harian - ${officer}`
             ),
             el(
               "p",
@@ -4635,7 +4347,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 style: "font-size:11px; padding:5px 12px;",
                 onclick: () => window.print(),
               },
-              "🖨️ Cetak Lembar Rute"
+              "ðŸ–¨ï¸ Cetak Lembar Rute"
             ),
             el(
               "a",
@@ -4646,7 +4358,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 class: "btn-card-action whatsapp",
                 style: "font-size:11px; padding:5px 10px;",
               },
-              "📲 Kirim WhatsApp"
+              "ðŸ“² Kirim WhatsApp"
             ),
             el(
               "button",
@@ -4658,7 +4370,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "✕"
+              "âœ•"
             )
           )
         ),
@@ -4922,7 +4634,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                             style:
                               "color:#DC2626; font-size:9.5px; font-weight:800; margin-top:2px;",
                           },
-                          "🚨 URGENT"
+                          "ðŸš¨ URGENT"
                         )
                       : null
                   ),
@@ -5001,7 +4713,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "span",
             {},
-            `⚠️ Terdapat ${overdueCount} Work Order yang telah melewati batas waktu SLA (Overdue). Mohon secepatnya ditindaklanjuti.`
+            `âš ï¸ Terdapat ${overdueCount} Work Order yang telah melewati batas waktu SLA (Overdue). Mohon secepatnya ditindaklanjuti.`
           ),
           el(
             "button",
@@ -5038,9 +4750,9 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           "div",
           { style: "display:flex; align-items:center; gap:6px;" },
           el("span", { class: "sla-beacon-dot" }),
-          el("span", {}, `🚨 Terdapat ${breaches.length} Work Order Kritis Melebihi Batas SLA (${urgentSlaHoursLimit}h)`)
+          el("span", {}, `ðŸš¨ Terdapat ${breaches.length} Work Order Kritis Melebihi Batas SLA (${urgentSlaHoursLimit}h)`)
         ),
-        el("button", { class: "sla-toggle-btn" }, "Buka Peringatan ▼")
+        el("button", { class: "sla-toggle-btn" }, "Buka Peringatan â–¼")
       );
     }
 
@@ -5058,7 +4770,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "span",
               { style: "font-size:11.5px; font-weight:800; color:#991B1B;" },
-              `🚨 Peringatan SLA Kritis: ${breaches.length} WO Overdue (>${urgentSlaHoursLimit} Jam)`
+              `ðŸš¨ Peringatan SLA Kritis: ${breaches.length} WO Overdue (>${urgentSlaHoursLimit} Jam)`
             ),
             el(
               "span",
@@ -5077,7 +4789,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     title: "Alihkan semua WO kritis ke teknisi rekomendasi",
                     onclick: () => executeAutoReassignAll(breaches),
                   },
-                  `⚡ Alihkan Semua (${breaches.length})`
+                  `âš¡ Alihkan Semua (${breaches.length})`
                 )
               : null,
             el(
@@ -5090,7 +4802,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              `▼ Rincian (${breaches.length})`
+              `â–¼ Rincian (${breaches.length})`
             ),
             el(
               "button",
@@ -5103,7 +4815,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "✕"
+              "âœ•"
             )
           )
         )
@@ -5124,7 +4836,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "span",
             { style: "font-size:11.5px; font-weight:800; color:#991B1B;" },
-            `🚨 Peringatan SLA Kritis: ${breaches.length} WO Melebihi Batas Waktu`
+            `ðŸš¨ Peringatan SLA Kritis: ${breaches.length} WO Melebihi Batas Waktu`
           )
         ),
         el(
@@ -5177,7 +4889,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            soundAlertEnabled ? "🔔" : "🔕"
+            soundAlertEnabled ? "ðŸ””" : "ðŸ”•"
           ),
           el(
             "button",
@@ -5190,7 +4902,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 triggerSlaSimulation();
               },
             },
-            "🧪 Uji Coba"
+            "ðŸ§ª Uji Coba"
           ),
           breaches.length > 1
             ? el(
@@ -5202,7 +4914,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     executeAutoReassignAll(breaches);
                   },
                 },
-                `⚡ Alihkan Semua (${breaches.length})`
+                `âš¡ Alihkan Semua (${breaches.length})`
               )
             : null,
           el(
@@ -5215,7 +4927,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "▲ Ciutkan"
+            "â–² Ciutkan"
           ),
           el(
             "button",
@@ -5228,7 +4940,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "✕"
+            "âœ•"
           )
         )
       ),
@@ -5256,7 +4968,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 el(
                   "span",
                   { class: "sla-overdue-tag" },
-                  `⏳ +${b.overdueHours}h`
+                  `â³ +${b.overdueHours}h`
                 ),
                 el(
                   "span",
@@ -5269,7 +4981,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 el(
                   "span",
                   { style: "font-size:11px; color:#475569;" },
-                  `Pelanggan: <b>${item.customer}</b> (${item.area || "Area"}) • Petugas: <b style="color:#B91C1C;">👷 ${currentOff}</b>`
+                  `Pelanggan: <b>${item.customer}</b> (${item.area || "Area"}) â€¢ Petugas: <b style="color:#B91C1C;">ðŸ‘· ${currentOff}</b>`
                 )
               )
             ),
@@ -5277,19 +4989,19 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "div",
               { class: "sla-suggestion-chip" },
-              el("span", { style: "font-size:13px;" }, "💡"),
+              el("span", { style: "font-size:13px;" }, "ðŸ’¡"),
               el(
                 "div",
                 { style: "display:flex; align-items:center; gap:4px; font-size:10.5px;" },
                 el(
                   "span",
                   { style: "font-weight:700; color:#166534;" },
-                  `Saran: 👷 ${best.officer}`
+                  `Saran: ðŸ‘· ${best.officer}`
                 ),
                 el(
                   "span",
                   { style: "color:#15803D; font-size:10px;" },
-                  `(~${best.distanceKm} km • ${best.activeCount} aktif)`
+                  `(~${best.distanceKm} km â€¢ ${best.activeCount} aktif)`
                 )
               )
             ),
@@ -5306,7 +5018,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     executeAutoReassignment(item.id, best.officer, b.suggestion.reason);
                   },
                 },
-                `⚡ Alihkan`
+                `âš¡ Alihkan`
               ),
               el(
                 "button",
@@ -5319,7 +5031,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     render();
                   },
                 },
-                "🗺️ Radar"
+                "ðŸ—ºï¸ Radar"
               ),
               el(
                 "button",
@@ -5376,7 +5088,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
 
       // @ts-ignore
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
+        attribution: "Â© OpenStreetMap",
         maxZoom: 18,
       }).addTo(map);
 
@@ -5386,7 +5098,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         className: "custom-div-icon",
         html: `
           <div style="background:#DC2626; color:#FFF; font-weight:800; font-size:11px; padding:4px 8px; border-radius:12px; box-shadow:0 0 0 4px rgba(220, 38, 38, 0.4); border:2px solid #FFF; display:flex; align-items:center; gap:4px; white-space:nowrap;">
-            🚨 ${ticket.id} (${ticket.area})
+            ðŸš¨ ${ticket.id} (${ticket.area})
           </div>
         `,
         iconSize: [110, 30],
@@ -5398,7 +5110,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         .addTo(map)
         .bindPopup(`
           <div style="font-size:12px; line-height:1.5;">
-            <b style="color:#DC2626;">🚨 WO Overdue: ${ticket.id}</b><br/>
+            <b style="color:#DC2626;">ðŸš¨ WO Overdue: ${ticket.id}</b><br/>
             Pelanggan: <b>${ticket.customer}</b><br/>
             Kategori: ${cat.label}<br/>
             Terlambat: <b>+${overdueHours} Jam</b><br/>
@@ -5417,10 +5129,10 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
 
         const bgCol = isBest ? "#16A34A" : isCurrent ? "#EA580C" : cand.color.main;
         const iconLabel = isBest
-          ? `⭐ ${cand.officer}`
+          ? `â­ ${cand.officer}`
           : isCurrent
-          ? `⚠️ ${cand.officer} (Kini)`
-          : `👷 ${cand.officer}`;
+          ? `âš ï¸ ${cand.officer} (Kini)`
+          : `ðŸ‘· ${cand.officer}`;
 
         // @ts-ignore
         const officerIcon = L.divIcon({
@@ -5505,7 +5217,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   "margin:0; font-size:16px; font-weight:800; color:#DC2626; display:flex; align-items:center; gap:8px;",
               },
               el("span", { class: "sla-beacon-dot" }),
-              `🚨 Radar Pengalihan Cerdas SLA: ${ticket.id}`
+              `ðŸš¨ Radar Pengalihan Cerdas SLA: ${ticket.id}`
             ),
             el(
               "div",
@@ -5513,7 +5225,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 style:
                   "font-size:12px; color:var(--ink-soft); margin-top:3px;",
               },
-              `Pelanggan: <b>${ticket.customer}</b> (${ticket.area || "Area"}) • Kategori: <b>${cat.label}</b>`
+              `Pelanggan: <b>${ticket.customer}</b> (${ticket.area || "Area"}) â€¢ Kategori: <b>${cat.label}</b>`
             )
           ),
           el(
@@ -5527,7 +5239,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "✕"
+            "âœ•"
           )
         ),
         // Overdue status banner
@@ -5543,12 +5255,12 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "div",
               { style: "font-size:12px; font-weight:800; color:#991B1B;" },
-              `⚠️ STATUS TIKET: MELEWATI BATAS WAKTU SLA (+${overdueHours} JAM OVERDUE)`
+              `âš ï¸ STATUS TIKET: MELEWATI BATAS WAKTU SLA (+${overdueHours} JAM OVERDUE)`
             ),
             el(
               "div",
               { style: "font-size:11px; color:#B91C1C; margin-top:2px;" },
-              `Diterima: ${fmtDateTime(new Date(ticket.receivedAt))} • Target SLA: ${targetHours} Jam • Petugas Saat Ini: <b>${ticket.officer || "Belum Ditugaskan"}</b>`
+              `Diterima: ${fmtDateTime(new Date(ticket.receivedAt))} â€¢ Target SLA: ${targetHours} Jam â€¢ Petugas Saat Ini: <b>${ticket.officer || "Belum Ditugaskan"}</b>`
             )
           ),
           el(
@@ -5570,7 +5282,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               style:
                 "font-size:12px; font-weight:700; color:var(--ink); margin-bottom:4px; display:flex; justify-content:space-between;",
             },
-            el("span", {}, "🗺️ Peta Kedekatan Lapangan & Posisi Armada"),
+            el("span", {}, "ðŸ—ºï¸ Peta Kedekatan Lapangan & Posisi Armada"),
             el(
               "span",
               { style: "font-size:11px; color:#16A34A; font-weight:700;" },
@@ -5589,7 +5301,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               style:
                 "font-size:12.5px; font-weight:800; color:var(--ink); margin-bottom:8px;",
             },
-            "👥 Matriks Ketersediaan & Jarak Semua Petugas Lapangan"
+            "ðŸ‘¥ Matriks Ketersediaan & Jarak Semua Petugas Lapangan"
           ),
           el(
             "div",
@@ -5653,7 +5365,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 style:
                                   "background:#DCFCE7; color:#166534; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px; border:1px solid #86EFAC;",
                               },
-                              "⭐ TERBAIK"
+                              "â­ TERBAIK"
                             )
                           : isCurrent
                           ? el(
@@ -5743,7 +5455,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 );
                               },
                             },
-                            isBest ? "⚡ Alihkan Sekarang" : "Alihkan"
+                            isBest ? "âš¡ Alihkan Sekarang" : "Alihkan"
                           )
                     )
                   );
@@ -5762,7 +5474,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "div",
             { style: "font-size:11.5px; color:#166534;" },
-            `💡 Rekomendasi Sistem: Alihkan ke <b>${best.officer}</b> (${suggestion.reason})`
+            `ðŸ’¡ Rekomendasi Sistem: Alihkan ke <b>${best.officer}</b> (${suggestion.reason})`
           ),
           el(
             "div",
@@ -5793,7 +5505,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   );
                 },
               },
-              `⚡ Alihkan Otomatis ke ${best.officer}`
+              `âš¡ Alihkan Otomatis ke ${best.officer}`
             )
           )
         )
@@ -5857,7 +5569,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   style:
                     "margin:0; font-size:15.5px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:6px;",
                 },
-                "🗺️ Pelacak Armada & Rute Harian Petugas"
+                "ðŸ—ºï¸ Pelacak Armada & Rute Harian Petugas"
               ),
               el(
                 "p",
@@ -5885,7 +5597,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   value: "semua",
                   selected: routeSelectedOfficer === "semua" ? "selected" : null,
                 },
-                "👥 Semua Petugas Lapangan (Jalur Seluruh Armada)"
+                "ðŸ‘¥ Semua Petugas Lapangan (Jalur Seluruh Armada)"
               ),
               ...OFFICERS.map((off) =>
                 el(
@@ -5895,7 +5607,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     selected:
                       routeSelectedOfficer === off ? "selected" : null,
                   },
-                  `👷 ${off} (${complaints.filter((c) => c.officer === off && c.status !== "selesai").length} Kasus)`
+                  `ðŸ‘· ${off} (${complaints.filter((c) => c.officer === off && c.status !== "selesai").length} Kasus)`
                 )
               )
             )
@@ -5910,7 +5622,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     style:
                       "font-size:11px; color:#059669; background:#ECFDF5; border:1px solid #A7F3D0; padding:4px 8px; border-radius:6px; font-weight:700;",
                   },
-                  `🕒 Dioptimasi: ${lastRouteGeneratedTimestamp} WIB`
+                  `ðŸ•’ Dioptimasi: ${lastRouteGeneratedTimestamp} WIB`
                 )
               : null,
             el(
@@ -5921,7 +5633,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   "font-size:11.5px; padding:7px 14px; font-weight:800; display:flex; align-items:center; gap:5px;",
                 onclick: () => generateDailyRoutesForAllOfficers(),
               },
-              "⚡ Generate Rute Harian Otomatis"
+              "âš¡ Generate Rute Harian Otomatis"
             ),
             el(
               "button",
@@ -5935,7 +5647,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "🔄 Reset Urutan Standar"
+              "ðŸ”„ Reset Urutan Standar"
             )
           )
         ),
@@ -6010,7 +5722,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "h3",
               { style: "margin:0; font-size:13.5px; font-weight:800; color:var(--ink);" },
-              "📋 Rekomendasi Rute Harian Petugas Lapangan"
+              "ðŸ“‹ Rekomendasi Rute Harian Petugas Lapangan"
             ),
             el(
               "span",
@@ -6024,7 +5736,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "span",
             { style: "font-size:11px; color:var(--ink-soft);" },
-            "💡 Klik kartu petugas untuk memfokuskan rute atau kirim via WhatsApp"
+            "ðŸ’¡ Klik kartu petugas untuk memfokuskan rute atau kirim via WhatsApp"
           )
         ),
         el(
@@ -6165,8 +5877,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                           style: `font-weight:800; color:${routeData.urgentCount > 0 ? "#DC2626" : "#059669"};`,
                         },
                         routeData.urgentCount > 0
-                          ? `🚨 ${routeData.urgentCount} Urgent`
-                          : "✅ Normal"
+                          ? `ðŸš¨ ${routeData.urgentCount} Urgent`
+                          : "âœ… Normal"
                       )
                     )
                   )
@@ -6192,7 +5904,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       el(
                         "span",
                         { style: "font-weight:700; color:var(--ink);" },
-                        "🚩 Start:"
+                        "ðŸš© Start:"
                       ),
                       el("span", {}, "Kantor Aetra Cikupa")
                     ),
@@ -6241,7 +5953,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                           render();
                         },
                       },
-                      "📍 Lihat di Peta"
+                      "ðŸ“ Lihat di Peta"
                     )
                   : null,
                 hasTickets
@@ -6253,7 +5965,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                         rel: "noopener",
                         class: "btn-card-action",
                       },
-                      "🚗 Rute Maps ↗"
+                      "ðŸš— Rute Maps â†—"
                     )
                   : null,
                 hasTickets
@@ -6265,7 +5977,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                         rel: "noopener",
                         class: "btn-card-action whatsapp",
                       },
-                      "📲 Kirim WA"
+                      "ðŸ“² Kirim WA"
                     )
                   : null,
                 hasTickets
@@ -6278,7 +5990,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                           render();
                         },
                       },
-                      "📄 SPK Rute"
+                      "ðŸ“„ SPK Rute"
                     )
                   : null
               )
@@ -6310,7 +6022,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "span",
               { style: "font-weight:800; color:var(--ink);" },
-              "🗺️ Armada Lapangan:"
+              "ðŸ—ºï¸ Armada Lapangan:"
             ),
             el(
               "span",
@@ -6337,7 +6049,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       render();
                     },
                   },
-                  `👷 ${r.officer} (${r.orderedTickets.length})`
+                  `ðŸ‘· ${r.officer} (${r.orderedTickets.length})`
                 )
               )
           )
@@ -6362,7 +6074,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               el(
                 "div",
                 { style: "font-size:12.5px; font-weight:800; color:var(--ink);" },
-                "📍 Itinerary Rute Harian"
+                "ðŸ“ Itinerary Rute Harian"
               ),
               el(
                 "div",
@@ -6395,7 +6107,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               style:
                 "padding:7px 10px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:6px; font-size:11px; font-weight:700; color:#1D4ED8; display:flex; align-items:center; gap:6px;",
             },
-            "🏢 Start: Kantor Operasional Aetra Cikupa"
+            "ðŸ¢ Start: Kantor Operasional Aetra Cikupa"
           ),
 
           // Specific Officer View
@@ -6472,7 +6184,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 style:
                                   "color:#DC2626; font-size:9.5px; font-weight:800; margin-top:3px;",
                               },
-                              "🚨 PRIORITAS URGENT"
+                              "ðŸš¨ PRIORITAS URGENT"
                             )
                           : null,
                         c
@@ -6499,7 +6211,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                   class: "btn-nav-route",
                                   style: "font-size:9.5px; padding:2px 8px;",
                                 },
-                                "🚗 Navigasi Maps ↗"
+                                "ðŸš— Navigasi Maps â†—"
                               )
                             )
                           : el(
@@ -6508,7 +6220,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 style:
                                   "margin-top:4px; font-size:9.5px; color:#F59E0B;",
                               },
-                              "⚠️ Koordinat belum terpasang"
+                              "âš ï¸ Koordinat belum terpasang"
                             )
                       );
                     })
@@ -6554,7 +6266,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                           style:
                             "font-size:10px; font-weight:700; color:var(--ink-soft);",
                         },
-                        `${routeData.orderedTickets.length} Stops • ${routeData.totalDistanceKm} km`
+                        `${routeData.orderedTickets.length} Stops â€¢ ${routeData.totalDistanceKm} km`
                       )
                     ),
                     el(
@@ -6631,7 +6343,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       );
 
       // Add Depot/Office Marker
-      const officeHtml = `<div style="background:#1E3A8A; color:#FFF; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; border:2px solid #FFF; box-shadow:0 2px 6px rgba(0,0,0,0.4);">🏢</div>`;
+      const officeHtml = `<div style="background:#1E3A8A; color:#FFF; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; border:2px solid #FFF; box-shadow:0 2px 6px rgba(0,0,0,0.4);">ðŸ¢</div>`;
       const officeIcon = L.divIcon({
         html: officeHtml,
         className: "",
@@ -6641,7 +6353,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       L.marker([OFFICE_COORDS.lat, OFFICE_COORDS.lng], { icon: officeIcon })
         .addTo(routeMapTabObj)
         .bindPopup(
-          "<b>🏢 Kantor Operasional Aetra Cikupa</b><br>Titik Keberangkatan & Kepulangan Armada Patroli"
+          "<b>ðŸ¢ Kantor Operasional Aetra Cikupa</b><br>Titik Keberangkatan & Kepulangan Armada Patroli"
         );
 
       const allCoordinatesForBounds: [number, number][] = [
@@ -6682,14 +6394,14 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 .bindPopup(
                   `<div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:180px;">
                     <div style="background:${data.color.main}; color:#FFF; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; display:inline-block; margin-bottom:4px;">
-                      👷 ${off} • Stop #${idx + 1}
+                      ðŸ‘· ${off} â€¢ Stop #${idx + 1}
                     </div>
                     <div style="font-weight:800; font-size:12px; color:#1E293B;">${t.id}</div>
                     <div style="font-weight:600; font-size:11px; margin-top:2px;">${t.customer}</div>
-                    <div style="font-size:10px; color:#64748B; margin-top:2px;">📍 ${t.address || t.area || "-"}</div>
+                    <div style="font-size:10px; color:#64748B; margin-top:2px;">ðŸ“ ${t.address || t.area || "-"}</div>
                     <div style="font-size:10px; color:#0284C7; font-weight:700; margin-top:2px;">Kategori: ${t.category}</div>
                     <div style="margin-top:6px;">
-                      <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" rel="noopener" style="font-size:10px; color:#2563EB; font-weight:700; text-decoration:underline;">🚗 Navigasi ke Titik Ini ↗</a>
+                      <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" rel="noopener" style="font-size:10px; color:#2563EB; font-weight:700; text-decoration:underline;">ðŸš— Navigasi ke Titik Ini â†—</a>
                     </div>
                   </div>`
                 );
@@ -6737,14 +6449,14 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               .bindPopup(
                 `<div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:180px;">
                   <div style="background:${data.color.main}; color:#FFF; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; display:inline-block; margin-bottom:4px;">
-                    👷 ${routeSelectedOfficer} • Stop #${idx + 1}
+                    ðŸ‘· ${routeSelectedOfficer} â€¢ Stop #${idx + 1}
                   </div>
                   <div style="font-weight:800; font-size:12px; color:#1E293B;">${t.id}</div>
                   <div style="font-weight:600; font-size:11px; margin-top:2px;">${t.customer}</div>
-                  <div style="font-size:10px; color:#64748B; margin-top:2px;">📍 ${t.address || t.area || "-"}</div>
+                  <div style="font-size:10px; color:#64748B; margin-top:2px;">ðŸ“ ${t.address || t.area || "-"}</div>
                   <div style="font-size:10px; color:#0284C7; font-weight:700; margin-top:2px;">Kategori: ${t.category}</div>
                   <div style="margin-top:6px;">
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" rel="noopener" style="font-size:10px; color:#2563EB; font-weight:700; text-decoration:underline;">🚗 Navigasi ke Titik Ini ↗</a>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" rel="noopener" style="font-size:10px; color:#2563EB; font-weight:700; text-decoration:underline;">ðŸš— Navigasi ke Titik Ini â†—</a>
                   </div>
                 </div>`
               );
@@ -6932,7 +6644,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "h3",
             {},
-            "📈 Tren Tingkat Penyelesaian Minor Repair (30 Hari Terakhir)"
+            "ðŸ“ˆ Tren Tingkat Penyelesaian Minor Repair (30 Hari Terakhir)"
           ),
           el(
             "p",
@@ -6963,7 +6675,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "📊 Volume (Selesai vs Masuk)"
+            "ðŸ“Š Volume (Selesai vs Masuk)"
           ),
           el(
             "button",
@@ -6974,7 +6686,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "〰️ Rata-rata 7-Hari"
+            "ã€°ï¸ Rata-rata 7-Hari"
           )
         )
       ),
@@ -6996,7 +6708,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               class: "trend-sub",
               style: `color:${trendData.trendDiff >= 0 ? "#10B981" : "#EF4444"};`,
             },
-            `${trendData.trendDiff >= 0 ? "▲ +" : "▼ "}${trendData.trendDiff}% vs awal bulan`
+            `${trendData.trendDiff >= 0 ? "â–² +" : "â–¼ "}${trendData.trendDiff}% vs awal bulan`
           )
         ),
         el(
@@ -7032,7 +6744,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         el(
           "div",
           { class: "trend-stat-card" },
-          el("div", { class: "trend-lbl" }, "Kepatuhan Target (≥85%)"),
+          el("div", { class: "trend-lbl" }, "Kepatuhan Target (â‰¥85%)"),
           el(
             "div",
             { class: "trend-val", style: "color:#D97706;" },
@@ -7056,7 +6768,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         el(
           "div",
           { style: "display:flex; align-items:center; gap:6px;" },
-          el("span", {}, "💡"),
+          el("span", {}, "ðŸ’¡"),
           el(
             "span",
             {},
@@ -7074,7 +6786,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "span",
             { style: "color:#059669; font-weight:700;" },
-            "— Tren Penyelesaian Tim"
+            "â€” Tren Penyelesaian Tim"
           )
         )
       )
@@ -7247,8 +6959,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     `Kasus Selesai: ${item.completedCount} WO`,
                     `Status SLA: ${
                       item.completionRate >= 85
-                        ? "✅ Memenuhi Target"
-                        : "⚠️ Di Bawah Target"
+                        ? "âœ… Memenuhi Target"
+                        : "âš ï¸ Di Bawah Target"
                     }`,
                   ];
                 },
@@ -7328,7 +7040,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               style:
                 "margin:0 0 4px 0; font-size:18px; font-weight:800; color:var(--ink);",
             },
-            "📊 Pusat Analisis & KPI Kinerja Layanan Minor Repair"
+            "ðŸ“Š Pusat Analisis & KPI Kinerja Layanan Minor Repair"
           ),
           el(
             "p",
@@ -7369,7 +7081,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 complianceRate >= 80 ? "#10B981" : "#EF4444"
               }; display:flex; align-items:center; justify-content:center; font-size:16px;`,
             },
-            complianceRate >= 80 ? "🎯" : "⚠️"
+            complianceRate >= 80 ? "ðŸŽ¯" : "âš ï¸"
           )
         )
       ),
@@ -7411,7 +7123,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             { class: "num", style: "color:var(--tinggi);" },
             String(overdueAll)
           ),
-          el("div", { class: "lbl" }, "Overdue SLA ⚠️")
+          el("div", { class: "lbl" }, "Overdue SLA âš ï¸")
         )
       ),
       render30DayCompletionTrendSection(),
@@ -7428,7 +7140,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "div",
             { class: "chart-header" },
-            el("h3", {}, "🍩 Komposisi Status Pekerjaan")
+            el("h3", {}, "ðŸ© Komposisi Status Pekerjaan")
           ),
           el(
             "div",
@@ -7522,7 +7234,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "div",
             { class: "quota-header" },
-            el("span", {}, "⚡ Kapasitas Tim Harian"),
+            el("span", {}, "âš¡ Kapasitas Tim Harian"),
             el(
               "span",
               { style: "color:var(--accent);" },
@@ -7535,7 +7247,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               style:
                 "font-size:11px; color:var(--ink-soft); margin:6px 0 0; line-height:1.4;",
             },
-            "Jadwal operasional Senin–Jumat. Kasus akhir pekan otomatis dialokasikan ke hari kerja berikutnya."
+            "Jadwal operasional Seninâ€“Jumat. Kasus akhir pekan otomatis dialokasikan ke hari kerja berikutnya."
           )
         )
       ),
@@ -7558,8 +7270,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 "margin:0; font-size:15px; font-weight:800; color:var(--ink);",
             },
             selectedDate
-              ? `📅 Agenda Kerja: ${fmtDateOnly(selectedDate)}`
-              : "📅 Agenda Kerja: Seluruh Tanggal Operasional"
+              ? `ðŸ“… Agenda Kerja: ${fmtDateOnly(selectedDate)}`
+              : "ðŸ“… Agenda Kerja: Seluruh Tanggal Operasional"
           ),
           selectedDate
             ? el(
@@ -7617,7 +7329,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 el(
                   "div",
                   { style: "font-weight:700; font-size:12px;" },
-                  `${c.customer} • ${c.area || "Cikupa"}`
+                  `${c.customer} â€¢ ${c.area || "Cikupa"}`
                 ),
                 el(
                   "div",
@@ -7634,7 +7346,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     style:
                       "font-size:11px; font-weight:700; color:var(--accent);",
                   },
-                  c.officer ? `👷 ${c.officer}` : "⚠️ Unassigned"
+                  c.officer ? `ðŸ‘· ${c.officer}` : "âš ï¸ Unassigned"
                 ),
                 el(
                   "button",
@@ -7647,7 +7359,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       render();
                     },
                   },
-                  "🔍 Detail"
+                  "ðŸ” Detail"
                 )
               )
             );
@@ -7655,6 +7367,714 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         )
       )
     );
+  }
+
+  function renderMobileSubTabContent(
+    officer: string,
+    routeData: any,
+    filteredTickets: ComplaintItem[],
+    officerTickets: ComplaintItem[],
+    activeTickets: ComplaintItem[],
+    prosesTickets: ComplaintItem[],
+    selesaiTickets: ComplaintItem[],
+    urgentTickets: ComplaintItem[],
+    capacityBg: string,
+    capacityColor: string,
+    capacityText: string,
+    completionRate: number,
+    officerColor: any,
+    initials: string
+  ): HTMLElement {
+    return mobileAppSubTab === "tasks"
+      ? el(
+          "div",
+          {
+            style:
+              "display:flex; flex-direction:column; flex:1; min-height:0;",
+          },
+          // Filter Row
+          el(
+            "div",
+            { class: "mobile-filter-row" },
+            el(
+              "span",
+              {
+                class: `mobile-filter-pill ${
+                  mobileFilterStatus === "all" ? "active" : ""
+                }`,
+                onclick: () => {
+                  mobileFilterStatus = "all";
+                  render();
+                },
+              },
+              `Semua (${officerTickets.length})`
+            ),
+            el(
+              "span",
+              {
+                class: `mobile-filter-pill ${
+                  mobileFilterStatus === "urgent" ? "active" : ""
+                }`,
+                onclick: () => {
+                  mobileFilterStatus = "urgent";
+                  render();
+                },
+              },
+              `ðŸš¨ Darurat (${urgentTickets.length})`
+            ),
+            el(
+              "span",
+              {
+                class: `mobile-filter-pill ${
+                  mobileFilterStatus === "proses" ? "active" : ""
+                }`,
+                onclick: () => {
+                  mobileFilterStatus = "proses";
+                  render();
+                },
+              },
+              `â–¶ Dikerjakan (${prosesTickets.length})`
+            ),
+            el(
+              "span",
+              {
+                class: `mobile-filter-pill ${
+                  mobileFilterStatus === "selesai" ? "active" : ""
+                }`,
+                onclick: () => {
+                  mobileFilterStatus = "selesai";
+                  render();
+                },
+              },
+              `âœ… Selesai (${selesaiTickets.length})`
+            )
+          ),
+
+          // Tickets Scroll List
+          el(
+            "div",
+            { class: "mobile-tickets-scroll" },
+            filteredTickets.length === 0
+              ? el(
+                  "div",
+                  {
+                    style:
+                      "text-align:center; padding:32px 16px; color:var(--ink-soft); font-size:12px; display:flex; flex-direction:column; align-items:center; gap:8px;",
+                  },
+                  el("span", { style: "font-size:32px;" }, "ðŸŽ‰"),
+                  el(
+                    "div",
+                    { style: "font-weight:700;" },
+                    "Tidak ada tugas pada filter ini"
+                  ),
+                  el(
+                    "div",
+                    { style: "font-size:11px;" },
+                    "Semua tugas beres atau silakan pilih status lain di atas."
+                  )
+                )
+              : filteredTickets.map((ticket) => {
+                  const isDone = ticket.status === "selesai";
+                  const isProses = ticket.status === "proses";
+                  const cInfo = catInfo(ticket.category);
+                  const deadlineInfo = getDeadlineInfo(ticket);
+
+                  let statusBadgeStyle =
+                    "background:rgba(239,68,68,0.15); color:#EF4444;";
+                  let statusText = "Menunggu Penanganan";
+                  if (isDone) {
+                    statusBadgeStyle =
+                      "background:rgba(16,185,129,0.15); color:#059669;";
+                    statusText = "Selesai Dikerjakan";
+                  } else if (isProses) {
+                    statusBadgeStyle =
+                      "background:rgba(2,132,199,0.15); color:#0284C7;";
+                    statusText = "Sedang Dikerjakan";
+                  }
+
+                  // Direct WA message
+                  const waGreeting = encodeURIComponent(
+                    `Halo Pelanggan Aetra Yth. (${ticket.customer || "Bpk/Ibu"}), saya ${officer} teknisi lapangan Aetra terkait laporan ${ticket.category} [${ticket.id}]. Kami sedang menuju lokasi ${ticket.address}. Mohon konfirmasi ketersediaan di tempat. Terima kasih.`
+                  );
+                  const waUrl = ticket.phone
+                    ? `https://wa.me/${ticket.phone.replace(/[^0-9]/g, "")}?text=${waGreeting}`
+                    : `https://wa.me/?text=${waGreeting}`;
+
+                  // Google Maps navigation url
+                  const coords = parseCoords(ticket.coords);
+                  const mapUrl = coords
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        ticket.address + " " + ticket.area
+                      )}`;
+
+                  return el(
+                    "div",
+                    {
+                      class: `mobile-ticket-card ${
+                        ticket.urgent && !isDone ? "card-urgent" : ""
+                      }`,
+                    },
+                    // Header: ID, Priority, Status
+                    el(
+                      "div",
+                      {
+                        style:
+                          "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;",
+                      },
+                      el(
+                        "div",
+                        {
+                          style:
+                            "display:flex; align-items:center; gap:6px;",
+                        },
+                        el(
+                          "span",
+                          {
+                            style:
+                              "font-family:monospace; font-size:12px; font-weight:800; color:var(--ink);",
+                          },
+                          ticket.id
+                        ),
+                        ticket.urgent
+                          ? el(
+                              "span",
+                              {
+                                style:
+                                  "background:#FEE2E2; color:#DC2626; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:4px; border:1px solid #FECACA;",
+                              },
+                              "ðŸš¨ URGENT"
+                            )
+                          : el("span", { style: "display:none;" })
+                      ),
+                      el(
+                        "span",
+                        {
+                          style: `font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; ${statusBadgeStyle}`,
+                        },
+                        statusText
+                      )
+                    ),
+
+                    // Customer & Meter info
+                    el(
+                      "div",
+                      {},
+                      el(
+                        "div",
+                        {
+                          style:
+                            "font-size:12.5px; font-weight:800; color:var(--ink); display:flex; align-items:center; justify-content:space-between;",
+                        },
+                        el("span", {}, ticket.customer || "-"),
+                        el(
+                          "span",
+                          {
+                            style:
+                              "font-size:10px; font-weight:600; color:var(--ink-soft); font-family:monospace;",
+                          },
+                          ticket.meterId ? `MTR: ${ticket.meterId}` : ""
+                        )
+                      ),
+                      el(
+                        "div",
+                        {
+                          style:
+                            "font-size:11px; color:var(--ink-soft); margin-top:2px; display:flex; align-items:flex-start; gap:4px;",
+                        },
+                        el("span", {}, "ðŸ“"),
+                        el(
+                          "span",
+                          {},
+                          `${ticket.address} (${ticket.area})`
+                        )
+                      )
+                    ),
+
+                    // Category & Description
+                    el(
+                      "div",
+                      {
+                        style:
+                          "background:var(--panel-alt); padding:6px 8px; border-radius:6px; font-size:11px; border:1px solid var(--border);",
+                      },
+                      el(
+                        "div",
+                        { style: "font-weight:700; color:var(--ink);" },
+                        `[${ticket.category}] ${cInfo.label}`
+                      ),
+                      ticket.desc
+                        ? el(
+                            "div",
+                            {
+                              style:
+                                "color:var(--ink-soft); font-size:10.5px; margin-top:2px; line-height:1.3;",
+                            },
+                            ticket.desc
+                          )
+                        : el("span", { style: "display:none;" })
+                    ),
+
+                    // SLA / Schedule info
+                    el(
+                      "div",
+                      {
+                        style:
+                          "display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--ink-soft);",
+                      },
+                      el(
+                        "span",
+                        {},
+                        `Batas SLA: ${deadlineInfo.statusText}`
+                      ),
+                      ticket.rescheduledDate
+                        ? el(
+                            "span",
+                            { style: "color:#D97706; font-weight:700;" },
+                            `Reschedule: ${ticket.rescheduledDate}`
+                          )
+                        : el(
+                            "span",
+                            {},
+                            `Masuk: ${fmtDateTime(
+                              new Date(ticket.receivedAt)
+                            )}`
+                          )
+                    ),
+
+                    // Action Buttons for Field Technician
+                    el(
+                      "div",
+                      { class: "mobile-action-bar" },
+                      // Call / WA
+                      el(
+                        "a",
+                        {
+                          class: "mobile-act-btn",
+                          style:
+                            "background:#25D366; color:#FFF; text-decoration:none;",
+                          href: waUrl,
+                          target: "_blank",
+                          rel: "noopener noreferrer",
+                        },
+                        "ðŸ’¬ Hubungi WA"
+                      ),
+                      // Navigation Maps
+                      el(
+                        "a",
+                        {
+                          class: "mobile-act-btn",
+                          style:
+                            "background:#0EA5E9; color:#FFF; text-decoration:none;",
+                          href: mapUrl,
+                          target: "_blank",
+                          rel: "noopener noreferrer",
+                        },
+                        "ðŸ§­ Navigasi"
+                      ),
+                      // Work State Change: Mulai / Selesai
+                      !isDone
+                        ? el(
+                            "div",
+                            { style: "display:flex; gap:6px; flex:1;" },
+                            !isProses
+                              ? el(
+                                  "button",
+                                  {
+                                    class: "mobile-act-btn",
+                                    style: "background:#2563EB; color:#FFF; flex:1; white-space:nowrap;",
+                                    onclick: () => {
+                                      ticket.status = "proses";
+                                      saveLocal();
+                                      // @ts-ignore
+                                      if ((window as any).Swal) {
+                                        // @ts-ignore
+                                        (window as any).Swal.fire({
+                                          icon: "info",
+                                          title: "Pengerjaan Dimulai",
+                                          text: `Status WO ${ticket.id} diubah menjadi 'Sedang Dikerjakan'. Dashboard pengawas otomatis tersinkron.`,
+                                          timer: 1500,
+                                          showConfirmButton: false,
+                                        });
+                                      }
+                                      render();
+                                    },
+                                  },
+                                  "â–¶ Mulai"
+                                )
+                              : null,
+                            el(
+                              "button",
+                              {
+                                class: "mobile-act-btn",
+                                style:
+                                  "background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:#FFF; font-weight:800; flex:1.3; box-shadow:0 2px 6px rgba(16, 185, 129, 0.3); white-space:nowrap;",
+                                onclick: () => {
+                                  finishTargetId = ticket.id;
+                                  finishModalOpen = true;
+                                  render();
+                                },
+                              },
+                              "âœ… Selesaikan"
+                            )
+                          )
+                        : el(
+                            "button",
+                            {
+                              class: "mobile-act-btn",
+                              style:
+                                "background:var(--panel-alt); border:1px solid var(--border); color:var(--ink-soft);",
+                              onclick: () => {
+                                detailTargetId = ticket.id;
+                                detailModalOpen = true;
+                                render();
+                              },
+                            },
+                            "ðŸ‘ï¸ Bukti & Detail"
+                          )
+                    )
+                  );
+                })
+          )
+        )
+      : mobileAppSubTab === "route"
+      ? el(
+          "div",
+          {
+            style:
+              "display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; padding:8px 12px 14px; gap:10px;",
+          },
+          // Route Summary Card
+          el(
+            "div",
+            {
+              style:
+                "background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;",
+            },
+            el(
+              "div",
+              {},
+              el(
+                "div",
+                { style: "font-size:12px; font-weight:800;" },
+                "Urutan Kunjungan Lapangan"
+              ),
+              el(
+                "div",
+                {
+                  style:
+                    "font-size:11px; color:var(--ink-soft); margin-top:2px;",
+                },
+                `${routeData.orderedTickets.length} Titik â€¢ ~${routeData.totalDistanceKm} km â€¢ Est. ${routeData.estTravelMinutes} mnt`
+              )
+            ),
+            el(
+              "a",
+              {
+                class: "btn-primary",
+                style:
+                  "font-size:10.5px; padding:6px 10px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;",
+                href: routeData.googleMapsUrl,
+                target: "_blank",
+                rel: "noopener noreferrer",
+              },
+              "ðŸ—ºï¸ Buka Rute Penuh"
+            )
+          ),
+
+          // Stop by stop sequence
+          ...routeData.orderedTickets.map((t: any, index: number) => {
+            const cInfo = catInfo(t.category);
+            return el(
+              "div",
+              {
+                style:
+                  "display:flex; gap:10px; align-items:flex-start; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px;",
+              },
+              el(
+                "div",
+                {
+                  style:
+                    "width:24px; height:24px; border-radius:50%; background:#0284C7; color:#FFF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0;",
+                },
+                String(index + 1)
+              ),
+              el(
+                "div",
+                { style: "flex:1;" },
+                el(
+                  "div",
+                  {
+                    style:
+                      "display:flex; justify-content:space-between; align-items:center;",
+                  },
+                  el(
+                    "span",
+                    { style: "font-size:12px; font-weight:800;" },
+                    t.customer
+                  ),
+                  el(
+                    "span",
+                    {
+                      style:
+                        "font-size:10px; font-family:monospace;",
+                    },
+                    t.id
+                  )
+                ),
+                el(
+                  "div",
+                  {
+                    style:
+                      "font-size:11px; color:var(--ink-soft); margin-top:2px;",
+                  },
+                  `${t.address} (${t.area})`
+                ),
+                el(
+                  "div",
+                  {
+                    style:
+                      "font-size:10.5px; color:var(--accent); font-weight:700; margin-top:3px;",
+                  },
+                  `[${t.category}] ${cInfo.label}`
+                ),
+                el(
+                  "div",
+                  { style: "display:flex; gap:6px; margin-top:8px;" },
+                  el(
+                    "a",
+                    {
+                      class: "btn-secondary",
+                      style:
+                        "font-size:10px; padding:4px 8px; text-decoration:none; display:inline-flex; align-items:center; gap:3px;",
+                      href: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                        (t.address || "") + ", Tangerang"
+                      )}`,
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                    },
+                    "ðŸ§­ Navigasi"
+                  ),
+                  t.status !== "selesai"
+                    ? el(
+                        "button",
+                        {
+                          class: "btn-primary",
+                          style:
+                            "font-size:10px; padding:4px 10px; background:#10B981; border:none; display:inline-flex; align-items:center; gap:3px; cursor:pointer;",
+                          onclick: () => {
+                            finishTargetId = t.id;
+                            finishModalOpen = true;
+                            render();
+                          },
+                        },
+                        "âœ… Selesaikan"
+                      )
+                    : el(
+                        "span",
+                        {
+                          style:
+                            "font-size:10px; font-weight:700; color:#059669; padding:4px 6px;",
+                        },
+                        "âœ… Selesai"
+                      )
+                )
+              )
+            );
+          })
+        )
+      : mobileAppSubTab === "workload"
+      ? el(
+          "div",
+          {
+            style:
+              "display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; padding:8px 12px 14px; gap:10px;",
+          },
+          el(
+            "div",
+            {
+              style:
+                "background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;",
+            },
+            el(
+              "h4",
+              { style: "margin:0; font-size:13px; font-weight:800;" },
+              "ðŸ“ˆ Analisis Beban & Kapasitas Teknisi"
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "font-size:11.5px; color:var(--ink-soft); line-height:1.4;",
+              },
+              `Teknisi ${officer} memiliki kuota optimal penanganan harian sebesar 5-8 tiket. Saat ini memegang ${activeTickets.length} tiket aktif.`
+            ),
+            el(
+              "div",
+              {
+                style: `padding:8px 10px; border-radius:6px; background:${capacityBg}; color:${capacityColor}; font-size:11.5px; font-weight:800;`,
+              },
+              `Status Kapasitas: ${capacityText}`
+            )
+          ),
+
+          // Area distribution for this officer
+          el(
+            "div",
+            {
+              style:
+                "background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;",
+            },
+            el(
+              "h4",
+              { style: "margin:0; font-size:12.5px; font-weight:800;" },
+              "ðŸ—ºï¸ Wilayah Cakupan Kerja"
+            ),
+            el(
+              "div",
+              { style: "display:flex; flex-wrap:wrap; gap:6px;" },
+              ...routeData.areas.map((ar: string) =>
+                el(
+                  "span",
+                  {
+                    style:
+                      "background:var(--panel-alt); border:1px solid var(--border); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700;",
+                  },
+                  `ðŸ“ ${ar}`
+                )
+              )
+            )
+          ),
+
+          // KPI completion summary
+          el(
+            "div",
+            {
+              style:
+                "background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;",
+            },
+            el(
+              "h4",
+              { style: "margin:0; font-size:12.5px; font-weight:800;" },
+              "ðŸ† Tingkat Penyelesaian (SLA)"
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "display:flex; justify-content:space-between; font-size:12px; font-weight:700;",
+              },
+              el("span", {}, "Tingkat Sukses:"),
+              el(
+                "span",
+                { style: "color:#10B981;" },
+                `${completionRate}%`
+              )
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "height:8px; background:var(--border); border-radius:4px; overflow:hidden;",
+              },
+              el("div", {
+                style: `height:100%; width:${completionRate}%; background:#10B981; border-radius:4px;`,
+              })
+            )
+          )
+        )
+      : el(
+          // Profile Sub-tab
+          "div",
+          {
+            style:
+              "display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; padding:14px 12px; gap:12px;",
+          },
+          el(
+            "div",
+            {
+              style:
+                "background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;",
+            },
+            el(
+              "div",
+              {
+                style: `width:56px; height:56px; border-radius:50%; background:${officerColor.bg}; border:3px solid ${officerColor.main}; color:${officerColor.main}; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900;`,
+              },
+              initials
+            ),
+            el(
+              "div",
+              { style: "font-size:15px; font-weight:800;" },
+              officer
+            ),
+            el(
+              "div",
+              { style: "font-size:11.5px; color:var(--ink-soft);" },
+              "Divisi Distribusi & Transmisi â€¢ Minor Repair"
+            ),
+            el(
+              "span",
+              {
+                style:
+                  "font-size:10.5px; background:rgba(16,185,129,0.15); color:#059669; font-weight:800; padding:2px 8px; border-radius:10px;",
+              },
+              "Teknisi Bersertifikat Aetra"
+            )
+          ),
+
+          el(
+            "div",
+            {
+              style:
+                "background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px; font-size:11.5px;",
+            },
+            el(
+              "div",
+              { style: "font-weight:800; color:var(--ink);" },
+              "Informasi Operasional:"
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "display:flex; justify-content:space-between; color:var(--ink-soft);",
+              },
+              el("span", {}, "Nomor Kontak Dispatch:"),
+              el(
+                "span",
+                { style: "font-weight:700; color:var(--ink);" },
+                "0812-8899-7711 (Pusat)"
+              )
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "display:flex; justify-content:space-between; color:var(--ink-soft);",
+              },
+              el("span", {}, "Armada / Motor:"),
+              el(
+                "span",
+                { style: "font-weight:700; color:var(--ink);" },
+                "B 3912 PKX (Unit Lapangan)"
+              )
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "display:flex; justify-content:space-between; color:var(--ink-soft);",
+              },
+              el("span", {}, "Sistem Sinkron:"),
+              el(
+                "span",
+                { style: "font-weight:700; color:#10B981;" },
+                "Supabase + Local Backup"
+              )
+            )
+          )
+        );
   }
 
   function renderMobileAppTab() {
@@ -7749,7 +8169,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 style:
                   "margin:0; font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px;",
               },
-              "📱 Aplikasi Petugas Lapangan (Mobile Dispatch Companion)",
+              "ðŸ“± Aplikasi Petugas Lapangan (Mobile Dispatch Companion)",
               el(
                 "span",
                 {
@@ -7757,7 +8177,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   title:
                     "Data tersinkron otomatis 2 arah dengan papan kerja pengawas",
                 },
-                "🟢 Realtime Sync Aktif"
+                "ðŸŸ¢ Realtime Sync Aktif"
               )
             ),
             el(
@@ -7785,7 +8205,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              mobileGuideOpen ? "✖ Tutup Petunjuk" : "📲 Cara Buka di HP Nyata"
+              mobileGuideOpen ? "âœ– Tutup Petunjuk" : "ðŸ“² Cara Buka di HP Nyata"
             ),
             el(
               "button",
@@ -7799,8 +8219,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 },
               },
               mobileDeviceMode === "phone"
-                ? "🖥️ Layar Penuh"
-                : "📱 Frame Handphone"
+                ? "ðŸ–¥ï¸ Layar Penuh"
+                : "ðŸ“± Frame Handphone"
             ),
             el(
               "button",
@@ -7828,7 +8248,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "🔄 Sinkronkan Sekarang"
+              "ðŸ”„ Sinkronkan Sekarang"
             )
           )
         ),
@@ -7869,8 +8289,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 return el(
                   "option",
                   { value: off, selected: off === selectedMobileOfficer },
-                  `👷 ${off} (${offCount} WO Aktif${
-                    offUrgent > 0 ? `, 🚨 ${offUrgent} Urgent` : ""
+                  `ðŸ‘· ${off} (${offCount} WO Aktif${
+                    offUrgent > 0 ? `, ðŸš¨ ${offUrgent} Urgent` : ""
                   })`
                 );
               })
@@ -7883,7 +8303,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 "font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;",
             },
             el("span", {}, `Terakhir sinkron: ${mobileLastSyncTime}`),
-            el("span", { style: "color:var(--border);" }, "•"),
+            el("span", { style: "color:var(--border);" }, "â€¢"),
             el(
               "span",
               {
@@ -7908,7 +8328,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   style:
                     "font-weight:800; color:#0284C7; margin-bottom:4px; display:flex; align-items:center; gap:6px;",
                 },
-                "📲 Petunjuk Membuka Aplikasi di Handphone Petugas Nyata (PWA Standalone):"
+                "ðŸ“² Petunjuk Membuka Aplikasi di Handphone Petugas Nyata (PWA Standalone):"
               ),
               el(
                 "ol",
@@ -7961,7 +8381,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       }
                     },
                   },
-                  "📋 Salin Tautan Mobile ke Clipboard"
+                  "ðŸ“‹ Salin Tautan Mobile ke Clipboard"
                 )
               )
             )
@@ -7999,8 +8419,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               "div",
               { style: "display:flex; align-items:center; gap:5px;" },
               el("span", { style: "font-size:9.5px;" }, "4G"),
-              el("span", {}, "📶"),
-              el("span", {}, "🔋 94%")
+              el("span", {}, "ðŸ“¶"),
+              el("span", {}, "ðŸ”‹ 94%")
             )
           ),
 
@@ -8037,7 +8457,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   style:
                     "font-size:10px; background:rgba(16,185,129,0.25); color:#A7F3D0; padding:2px 7px; border-radius:10px; font-weight:700; border:1px solid rgba(167,243,208,0.4);",
                 },
-                "🟢 Online"
+                "ðŸŸ¢ Online"
               )
             ),
 
@@ -8073,7 +8493,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       style:
                         "font-size:10.5px; opacity:0.85; margin-top:1px;",
                     },
-                    "Teknisi Operasional • Armada Siaga"
+                    "Teknisi Operasional â€¢ Armada Siaga"
                   )
                 )
               ),
@@ -8110,7 +8530,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   style:
                     "font-size:11.5px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:5px;",
                 },
-                "📊 Beban Kerja Petugas",
+                "ðŸ“Š Beban Kerja Petugas",
                 el(
                   "span",
                   {
@@ -8238,7 +8658,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     style:
                       "background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; padding:5px 8px; border-radius:6px; font-size:10.5px; font-weight:700; display:flex; align-items:center; gap:5px;",
                   },
-                  el("span", {}, "🚨"),
+                  el("span", {}, "ðŸš¨"),
                   el(
                     "span",
                     {},
@@ -8263,7 +8683,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              `📋 Tugas (${officerTickets.length})`
+              `ðŸ“‹ Tugas (${officerTickets.length})`
             ),
             el(
               "button",
@@ -8276,7 +8696,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              `🗺️ Rute (${routeData.orderedTickets.length})`
+              `ðŸ—ºï¸ Rute (${routeData.orderedTickets.length})`
             ),
             el(
               "button",
@@ -8289,7 +8709,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "📊 Beban"
+              "ðŸ“Š Beban"
             ),
             el(
               "button",
@@ -8302,7 +8722,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "👤 Profil"
+              "ðŸ‘¤ Profil"
             )
           ),
 
@@ -8342,7 +8762,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                         render();
                       },
                     },
-                    `🚨 Darurat (${urgentTickets.length})`
+                    `ðŸš¨ Darurat (${urgentTickets.length})`
                   ),
                   el(
                     "span",
@@ -8355,7 +8775,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                         render();
                       },
                     },
-                    `▶ Dikerjakan (${prosesTickets.length})`
+                    `â–¶ Dikerjakan (${prosesTickets.length})`
                   ),
                   el(
                     "span",
@@ -8368,7 +8788,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                         render();
                       },
                     },
-                    `✅ Selesai (${selesaiTickets.length})`
+                    `âœ… Selesai (${selesaiTickets.length})`
                   )
                 ),
 
@@ -8383,7 +8803,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                           style:
                             "text-align:center; padding:32px 16px; color:var(--ink-soft); font-size:12px; display:flex; flex-direction:column; align-items:center; gap:8px;",
                         },
-                        el("span", { style: "font-size:32px;" }, "🎉"),
+                        el("span", { style: "font-size:32px;" }, "ðŸŽ‰"),
                         el(
                           "div",
                           { style: "font-weight:700;" },
@@ -8403,15 +8823,15 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
 
                         let statusBadgeStyle =
                           "background:#F3F4F6; color:#4B5563;";
-                        let statusText = "⏳ Menunggu";
+                        let statusText = "â³ Menunggu";
                         if (isDone) {
                           statusBadgeStyle =
                             "background:#DEF7EC; color:#03543F;";
-                          statusText = "✅ Selesai";
+                          statusText = "âœ… Selesai";
                         } else if (isProses) {
                           statusBadgeStyle =
                             "background:#DBEAFE; color:#1E40AF;";
-                          statusText = "▶ Sedang Dikerjakan";
+                          statusText = "â–¶ Sedang Dikerjakan";
                         }
 
                         // WhatsApp link
@@ -8472,7 +8892,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                       style:
                                         "background:#FEE2E2; color:#DC2626; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:4px; border:1px solid #FECACA;",
                                     },
-                                    "🚨 URGENT"
+                                    "ðŸš¨ URGENT"
                                   )
                                 : el("span", { style: "display:none;" })
                             ),
@@ -8511,7 +8931,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 style:
                                   "font-size:11px; color:var(--ink-soft); margin-top:2px; display:flex; align-items:flex-start; gap:4px;",
                               },
-                              el("span", {}, "📍"),
+                              el("span", {}, "ðŸ“"),
                               el(
                                 "span",
                                 {},
@@ -8586,7 +9006,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 target: "_blank",
                                 rel: "noopener noreferrer",
                               },
-                              "💬 Hubungi WA"
+                              "ðŸ’¬ Hubungi WA"
                             ),
                             // Navigation Maps
                             el(
@@ -8599,107 +9019,54 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                 target: "_blank",
                                 rel: "noopener noreferrer",
                               },
-                              "🧭 Navigasi"
+                              "ðŸ§­ Navigasi"
                             ),
                             // Work State Change: Mulai / Selesai
-                      !isDone
-                        ? el(
-                            "div",
-                            { style: "display:flex; gap:6px; flex:1;" },
-                            !isProses
-                              ? el(
-                                  "button",
-                                  {
-                                    class: "mobile-act-btn",
-                                    style: "background:#2563EB; color:#FFF; flex:1; white-space:nowrap;",
-                                    onclick: () => {
-                                      ticket.status = "proses";
-                                      saveLocal();
-                                      // @ts-ignore
-                                      if ((window as any).Swal) {
-                                        // @ts-ignore
-                                        (window as any).Swal.fire({
-                                          icon: "info",
-                                          title: "Pengerjaan Dimulai",
-                                          text: `Status WO ${ticket.id} diubah menjadi 'Sedang Dikerjakan'. Dashboard pengawas otomatis tersinkron.`,
-                                          timer: 1500,
-                                          showConfirmButton: false,
-                                        });
-                                      }
-                                      render();
-                                    },
-                                  },
-                                  "▶ Mulai"
-                                )
-                              : null,
-                            el(
-                              "button",
-                              {
-                                class: "mobile-act-btn",
-                                style:
-                                  "background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:#FFF; font-weight:800; flex:1.3; box-shadow:0 2px 6px rgba(16, 185, 129, 0.3); white-space:nowrap;",
-                                onclick: () => {
-                                  finishTargetId = ticket.id;
-                                  finishModalOpen = true;
-                                  render();
-                                },
-                              },
-                              "✅ Selesaikan"
-                            )
-                          )
-                        : el(
-                            "button",
-                            {
-                              class: "mobile-act-btn",
-                              style:
-                                "background:var(--panel-alt); border:1px solid var(--border); color:var(--ink-soft);",
-                              onclick: () => {
-                                detailTargetId = ticket.id;
-                                detailModalOpen = true;
-                                render();
-                              },
-                            },
-                            "👁️ Bukti & Detail"
-                          )
                             !isDone
-                              ? !isProses
-                                ? el(
+                              ? el(
+                                  "div",
+                                  { style: "display:flex; gap:6px; flex:1;" },
+                                  !isProses
+                                    ? el(
+                                        "button",
+                                        {
+                                          class: "mobile-act-btn",
+                                          style: "background:#2563EB; color:#FFF; flex:1; white-space:nowrap;",
+                                          onclick: () => {
+                                            ticket.status = "proses";
+                                            saveLocal();
+                                            // @ts-ignore
+                                            if ((window as any).Swal) {
+                                              // @ts-ignore
+                                              (window as any).Swal.fire({
+                                                icon: "info",
+                                                title: "Pengerjaan Dimulai",
+                                                text: `Status WO ${ticket.id} diubah menjadi 'Sedang Dikerjakan'. Dashboard pengawas otomatis terupdate.`,
+                                                timer: 1500,
+                                                showConfirmButton: false,
+                                              });
+                                            }
+                                            render();
+                                          },
+                                        },
+                                        "â–¶ Mulai"
+                                      )
+                                    : null,
+                                  el(
                                     "button",
                                     {
                                       class: "mobile-act-btn",
-                                      style: "background:#2563EB; color:#FFF;",
-                                      onclick: () => {
-                                        ticket.status = "proses";
-                                        saveLocal();
-                                        // @ts-ignore
-                                        if ((window as any).Swal) {
-                                          // @ts-ignore
-                                          (window as any).Swal.fire({
-                                            icon: "info",
-                                            title: "Pengerjaan Dimulai",
-                                            text: `Status WO ${ticket.id} diubah menjadi 'Sedang Dikerjakan'. Dashboard pengawas otomatis terupdate.`,
-                                            timer: 1600,
-                                            showConfirmButton: false,
-                                          });
-                                        }
-                                        render();
-                                      },
-                                    },
-                                    "▶ Mulai Kerja"
-                                  )
-                                : el(
-                                    "button",
-                                    {
-                                      class: "mobile-act-btn",
-                                      style: "background:#10B981; color:#FFF;",
+                                      style:
+                                        "background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:#FFF; font-weight:800; flex:1.3; box-shadow:0 2px 6px rgba(16, 185, 129, 0.3); white-space:nowrap;",
                                       onclick: () => {
                                         finishTargetId = ticket.id;
                                         finishModalOpen = true;
                                         render();
                                       },
                                     },
-                                    "✅ Selesaikan"
+                                    "âœ… Selesaikan"
                                   )
+                                )
                               : el(
                                   "button",
                                   {
@@ -8712,7 +9079,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                                       render();
                                     },
                                   },
-                                  "👁️ Detail Kasus"
+                                  "ðŸ‘ï¸ Detail Kasus"
                                 )
                           )
                         );
@@ -8747,7 +9114,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                         style:
                           "font-size:11px; color:var(--ink-soft); margin-top:2px;",
                       },
-                      `${routeData.orderedTickets.length} Titik • ~${routeData.totalDistanceKm} km • Est. ${routeData.estTravelMinutes} mnt`
+                      `${routeData.orderedTickets.length} Titik â€¢ ~${routeData.totalDistanceKm} km â€¢ Est. ${routeData.estTravelMinutes} mnt`
                     )
                   ),
                   el(
@@ -8760,7 +9127,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       target: "_blank",
                       rel: "noopener noreferrer",
                     },
-                    "🗺️ Buka Rute Penuh"
+                    "ðŸ—ºï¸ Buka Rute Penuh"
                   )
                 ),
 
@@ -8840,7 +9207,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   el(
                     "h4",
                     { style: "margin:0; font-size:13px; font-weight:800;" },
-                    "📈 Analisis Beban & Kapasitas Teknisi"
+                    "ðŸ“ˆ Analisis Beban & Kapasitas Teknisi"
                   ),
                   el(
                     "div",
@@ -8869,7 +9236,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   el(
                     "h4",
                     { style: "margin:0; font-size:12.5px; font-weight:800;" },
-                    "🗺️ Wilayah Cakupan Kerja"
+                    "ðŸ—ºï¸ Wilayah Cakupan Kerja"
                   ),
                   el(
                     "div",
@@ -8881,7 +9248,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                           style:
                             "background:var(--panel-alt); border:1px solid var(--border); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700;",
                         },
-                        `📍 ${ar}`
+                        `ðŸ“ ${ar}`
                       )
                     )
                   )
@@ -8897,7 +9264,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   el(
                     "h4",
                     { style: "margin:0; font-size:12.5px; font-weight:800;" },
-                    "🏆 Tingkat Penyelesaian (SLA)"
+                    "ðŸ† Tingkat Penyelesaian (SLA)"
                   ),
                   el(
                     "div",
@@ -8952,7 +9319,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   el(
                     "div",
                     { style: "font-size:11.5px; color:var(--ink-soft);" },
-                    "Divisi Distribusi & Transmisi • Minor Repair"
+                    "Divisi Distribusi & Transmisi â€¢ Minor Repair"
                   ),
                   el(
                     "span",
@@ -9032,7 +9399,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              el("span", { style: "font-size:14px;" }, "📋"),
+              el("span", { style: "font-size:14px;" }, "ðŸ“‹"),
               el("span", {}, "Tugas WO")
             ),
             el(
@@ -9046,7 +9413,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              el("span", { style: "font-size:14px;" }, "🗺️"),
+              el("span", { style: "font-size:14px;" }, "ðŸ—ºï¸"),
               el("span", {}, "Rute Jalan")
             ),
             el(
@@ -9060,7 +9427,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              el("span", { style: "font-size:14px;" }, "📊"),
+              el("span", { style: "font-size:14px;" }, "ðŸ“Š"),
               el("span", {}, "Beban Kerja")
             ),
             el(
@@ -9074,12 +9441,650 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              el("span", { style: "font-size:14px;" }, "👤"),
+              el("span", { style: "font-size:14px;" }, "ðŸ‘¤"),
               el("span", {}, "Profil")
             )
           )
         )
       )
+    );
+  }
+
+  function renderNativeMobileApp() {
+    const officer = selectedMobileOfficer || OFFICERS[0];
+    const officerColor = getOfficerColor(officer);
+
+    // Get all tickets assigned to this officer
+    const officerTickets = complaints.filter((c) => c.officer === officer);
+    const activeTickets = officerTickets.filter((c) => c.status !== "selesai");
+    const prosesTickets = officerTickets.filter((c) => c.status === "proses");
+    const selesaiTickets = officerTickets.filter((c) => c.status === "selesai");
+    const urgentTickets = officerTickets.filter(
+      (c) => c.urgent && c.status !== "selesai"
+    );
+
+    const totalAssigned = officerTickets.length;
+    const completionRate =
+      totalAssigned > 0
+        ? Math.round((selesaiTickets.length / totalAssigned) * 100)
+        : 0;
+
+    const routeData = calculateOfficerDailyRoute(officer);
+
+    // Capacity status
+    let capacityText = "Beban Ringan (Kapasitas Tersedia)";
+    let capacityColor = "#10B981";
+    let capacityBg = "rgba(16, 185, 129, 0.12)";
+    if (activeTickets.length >= 6) {
+      capacityText = "Beban Padat (Kapasitas Penuh)";
+      capacityColor = "#EF4444";
+      capacityBg = "rgba(239, 68, 68, 0.12)";
+    } else if (activeTickets.length >= 3) {
+      capacityText = "Beban Optimal (Seimbang)";
+      capacityColor = "#0284C7";
+      capacityBg = "rgba(2, 132, 199, 0.12)";
+    } else if (activeTickets.length === 0) {
+      capacityText = "Kosong / Bebas Tugas";
+      capacityColor = "#6B7280";
+      capacityBg = "rgba(107, 114, 128, 0.12)";
+    }
+
+    // Filter tickets according to mobileFilterStatus
+    let filteredTickets = officerTickets;
+    if (mobileFilterStatus === "urgent") {
+      filteredTickets = officerTickets.filter(
+        (c) => c.urgent && c.status !== "selesai"
+      );
+    } else if (mobileFilterStatus === "proses") {
+      filteredTickets = officerTickets.filter((c) => c.status === "proses");
+    } else if (mobileFilterStatus === "selesai") {
+      filteredTickets = officerTickets.filter((c) => c.status === "selesai");
+    }
+
+    if (mobileSearchQuery.trim()) {
+      const q = mobileSearchQuery.toLowerCase().trim();
+      filteredTickets = filteredTickets.filter((c) => {
+        const cInfo = catInfo(c.category);
+        return (
+          c.id.toLowerCase().includes(q) ||
+          c.customer.toLowerCase().includes(q) ||
+          (c.meterId && c.meterId.toLowerCase().includes(q)) ||
+          (c.address && c.address.toLowerCase().includes(q)) ||
+          (c.area && c.area.toLowerCase().includes(q)) ||
+          (c.desc && c.desc.toLowerCase().includes(q)) ||
+          c.category.toLowerCase().includes(q) ||
+          cInfo.label.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    const initials = officer
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    const isStandalone =
+      (typeof window !== "undefined" &&
+        (window.matchMedia("(display-mode: standalone)").matches ||
+          (window.navigator as any).standalone === true)) ||
+      false;
+
+    const handleInstallPwa = async () => {
+      if (deferredPwaPrompt) {
+        deferredPwaPrompt.prompt();
+        const choice = await deferredPwaPrompt.userChoice;
+        if (choice && choice.outcome === "accepted") {
+          deferredPwaPrompt = null;
+        }
+      } else {
+        // @ts-ignore
+        if ((window as any).Swal) {
+          // @ts-ignore
+          (window as any).Swal.fire({
+            title: "ðŸ“² Pasang AETRA Mobile di HP",
+            html: `
+              <div style="text-align:left; font-size:12.5px; line-height:1.6; color:#334155;">
+                <p><b>Untuk Android (Google Chrome):</b><br/>
+                Ketuk tombol menu titik tiga (<b>â‹®</b>) di pojok kanan atas browser, lalu pilih <b>"Tambahkan ke Layar Utama"</b> atau <b>"Pasang Aplikasi"</b>.</p>
+                <hr style="border:none; border-top:1px solid #E2E8F0; margin:10px 0;"/>
+                <p><b>Untuk iPhone / iPad (Safari):</b><br/>
+                Ketuk tombol <b>Bagikan (Share)</b> bergambar kotak dengan panah ke atas (âŽ‹), lalu pilih <b>"Tambahkan ke Layar Utama" (Add to Home Screen)</b>.</p>
+                <p style="font-size:11px; color:#0284C7; margin-top:8px;">
+                  âœ¨ Setelah terpasang, AETRA Mobile dapat dibuka langsung dari layar utama HP tanpa bar browser!
+                </p>
+              </div>
+            `,
+            icon: "info",
+            confirmButtonText: "Mengerti",
+            confirmButtonColor: "#0284C7",
+          });
+        }
+      }
+    };
+
+    return el(
+      "div",
+      { class: "mobile-native-app-root" },
+
+      // 0. Simulated Mobile Phone Status Bar
+      el(
+        "div",
+        { class: "mobile-phone-status-bar" },
+        el(
+          "span",
+          {},
+          currentTimeString
+            ? currentTimeString.slice(0, 5)
+            : new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+        ),
+        el(
+          "div",
+          { style: "display:flex; align-items:center; gap:8px;" },
+          el("span", {}, "ðŸ“¶ 5G"),
+          el("span", {}, "ðŸ“ GPS Siaga"),
+          el("span", {}, "ðŸ”‹ 98%")
+        )
+      ),
+
+      // 1. Mobile Header (App Bar)
+      el(
+        "header",
+        { class: "mobile-native-header" },
+        el(
+          "div",
+          { class: "mobile-native-brand" },
+          el(
+            "div",
+            {
+              style:
+                "width:32px; height:32px; border-radius:8px; background:#FFFFFF; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,0.1);",
+            },
+            el("span", { style: "font-size:18px;" }, "ðŸ’§")
+          ),
+          el(
+            "div",
+            {},
+            el("h1", {}, "AETRA Mobile"),
+            el("span", {}, "Sistem Lapangan Petugas")
+          )
+        ),
+        el(
+          "div",
+          { style: "display:flex; align-items:center; gap:6px;" },
+          el(
+            "button",
+            {
+              class: "btn-secondary",
+              style:
+                "padding:5px 8px; font-size:11px; background:rgba(255,255,255,0.18); color:#FFFFFF; border:none; border-radius:6px; cursor:pointer;",
+              title: "Pasang Aplikasi",
+              onclick: handleInstallPwa,
+            },
+            "ðŸ“² Pasang"
+          ),
+          el(
+            "button",
+            {
+              class: "btn-secondary",
+              style:
+                "padding:5px 8px; font-size:11px; background:rgba(255,255,255,0.18); color:#FFFFFF; border:none; border-radius:6px; cursor:pointer;",
+              title: "Sinkronkan Data",
+              onclick: async () => {
+                syncStatus = "syncing";
+                render();
+                await load();
+                syncStatus = "synced";
+                render();
+              },
+            },
+            syncStatus === "syncing" ? "â³ Sync..." : "ðŸ”„"
+          ),
+          el(
+            "button",
+            {
+              class: "btn-secondary",
+              style:
+                "padding:5px 8px; font-size:11px; background:rgba(255,255,255,0.18); color:#FFFFFF; border:none; border-radius:6px; cursor:pointer;",
+              onclick: () => {
+                isDarkMode = !isDarkMode;
+                document.body.classList.toggle("dark-mode", isDarkMode);
+                render();
+              },
+            },
+            isDarkMode ? "â˜€ï¸" : "ðŸŒ™"
+          )
+        )
+      ),
+
+      // PWA Install Banner (Dismissible)
+      !isStandalone && !pwaDismissed
+        ? el(
+            "div",
+            { class: "mobile-pwa-banner" },
+            el(
+              "div",
+              { style: "display:flex; align-items:center; gap:8px;" },
+              el("span", { style: "font-size:22px;" }, "ðŸ“²"),
+              el(
+                "div",
+                {},
+                el(
+                  "div",
+                  {
+                    style:
+                      "font-size:12px; font-weight:800; color:var(--ink); line-height:1.2;",
+                  },
+                  "Pasang AETRA Mobile di HP"
+                ),
+                el(
+                  "div",
+                  {
+                    style:
+                      "font-size:10.5px; color:var(--ink-soft); margin-top:2px;",
+                  },
+                  "Buka tanpa browser bar, lebih cepat & hemat baterai"
+                )
+              )
+            ),
+            el(
+              "div",
+              { style: "display:flex; align-items:center; gap:6px;" },
+              el(
+                "button",
+                {
+                  class: "mobile-pwa-banner-btn",
+                  onclick: handleInstallPwa,
+                },
+                "Pasang"
+              ),
+              el(
+                "button",
+                {
+                  style:
+                    "background:transparent; border:none; color:var(--ink-soft); font-size:14px; cursor:pointer; padding:2px 4px;",
+                  onclick: () => {
+                    pwaDismissed = true;
+                    try {
+                      sessionStorage.setItem("aetra_pwa_dismissed", "true");
+                    } catch (e) {}
+                    render();
+                  },
+                },
+                "âœ•"
+              )
+            )
+          )
+        : null,
+
+      // 2. Officer Selector & Live Shift Stats Card
+      el(
+        "div",
+        { class: "mobile-native-officer-card" },
+        // Greeting & Shift line
+        el(
+          "div",
+          {
+            style:
+              "display:flex; justify-content:space-between; align-items:center;",
+          },
+          el(
+            "div",
+            {},
+            el(
+              "div",
+              {
+                style:
+                  "font-size:13.5px; font-weight:800; color:var(--ink); letter-spacing:-0.2px;",
+              },
+              `Halo, ${officer} ðŸ‘‹`
+            ),
+            el(
+              "div",
+              {
+                style:
+                  "font-size:10px; color:var(--ink-soft); font-weight:600; margin-top:1px;",
+              },
+              "Shift: 08:00 - 17:00 WIB â€¢ Unit B 3912 PKX"
+            )
+          ),
+          el(
+            "span",
+            {
+              style:
+                "font-size:10px; background:rgba(16,185,129,0.15); color:#059669; font-weight:800; padding:2px 8px; border-radius:12px;",
+            },
+            "ðŸŸ¢ Online Siaga"
+          )
+        ),
+        // Select Officer
+        el(
+          "div",
+          { style: "display:flex; align-items:center; gap:8px;" },
+          el(
+            "div",
+            {
+              style: `width:36px; height:36px; border-radius:50%; background:${officerColor.bg}; border:2px solid ${officerColor.main}; color:${officerColor.main}; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; flex-shrink:0;`,
+            },
+            initials
+          ),
+          el(
+            "select",
+            {
+              class: "mobile-native-officer-select",
+              style: "flex:1;",
+              value: selectedMobileOfficer,
+              onchange: (e: any) => {
+                selectedMobileOfficer = e.target.value;
+                try {
+                  localStorage.setItem(STORED_OFFICER_KEY, selectedMobileOfficer);
+                } catch (err) {}
+                render();
+              },
+            },
+            ...OFFICERS.map((off) => {
+              const offCount = complaints.filter(
+                (c) => c.officer === off && c.status !== "selesai"
+              ).length;
+              const offUrgent = complaints.filter(
+                (c) => c.officer === off && c.status !== "selesai" && c.urgent
+              ).length;
+              return el(
+                "option",
+                { value: off, selected: off === selectedMobileOfficer },
+                `ðŸ‘· ${off} (${offCount} WO Aktif${
+                  offUrgent > 0 ? `, ðŸš¨ ${offUrgent} Urgent` : ""
+                })`
+              );
+            })
+          )
+        ),
+        // Shift Stats Row (Clickable filter shortcuts)
+        el(
+          "div",
+          { class: "mobile-native-stats-row" },
+          el(
+            "div",
+            {
+              class: "mobile-native-stat-box",
+              title: "Tampilkan semua tugas aktif",
+              onclick: () => {
+                mobileFilterStatus = "all";
+                mobileAppSubTab = "tasks";
+                render();
+              },
+            },
+            el(
+              "div",
+              { class: "mobile-native-stat-num", style: "color:#0284C7;" },
+              String(activeTickets.length)
+            ),
+            el("div", { class: "mobile-native-stat-label" }, "Tugas Aktif")
+          ),
+          el(
+            "div",
+            {
+              class: "mobile-native-stat-box",
+              title: "Tampilkan tugas urgent darurat",
+              onclick: () => {
+                mobileFilterStatus = "urgent";
+                mobileAppSubTab = "tasks";
+                render();
+              },
+            },
+            el(
+              "div",
+              { class: "mobile-native-stat-num", style: "color:#EF4444;" },
+              String(urgentTickets.length)
+            ),
+            el("div", { class: "mobile-native-stat-label" }, "Urgent Kritis")
+          ),
+          el(
+            "div",
+            {
+              class: "mobile-native-stat-box",
+              title: "Tampilkan tugas selesai",
+              onclick: () => {
+                mobileFilterStatus = "selesai";
+                mobileAppSubTab = "tasks";
+                render();
+              },
+            },
+            el(
+              "div",
+              { class: "mobile-native-stat-num", style: "color:#10B981;" },
+              String(selesaiTickets.length)
+            ),
+            el("div", { class: "mobile-native-stat-label" }, "Selesai")
+          )
+        ),
+        // Mobile Search Bar
+        el(
+          "div",
+          { class: "mobile-search-wrapper" },
+          el("span", { class: "mobile-search-icon" }, "ðŸ”"),
+          el("input", {
+            class: "mobile-search-input",
+            type: "text",
+            placeholder: "Cari nama, meter, alamat, keluhan...",
+            value: mobileSearchQuery,
+            oninput: (e: any) => {
+              mobileSearchQuery = e.target.value;
+              render();
+            },
+          }),
+          mobileSearchQuery
+            ? el(
+                "button",
+                {
+                  class: "mobile-search-clear",
+                  onclick: () => {
+                    mobileSearchQuery = "";
+                    render();
+                  },
+                },
+                "âœ•"
+              )
+            : null
+        ),
+        // Sub-tabs Row
+        el(
+          "div",
+          { class: "mobile-native-tabs" },
+          el(
+            "button",
+            {
+              class: `mobile-native-tab-btn ${
+                mobileAppSubTab === "tasks" ? "active" : ""
+              }`,
+              onclick: () => {
+                mobileAppSubTab = "tasks";
+                render();
+              },
+            },
+            "ðŸ“‹ Tugas Saya"
+          ),
+          el(
+            "button",
+            {
+              class: `mobile-native-tab-btn ${
+                mobileAppSubTab === "route" ? "active" : ""
+              }`,
+              onclick: () => {
+                mobileAppSubTab = "route";
+                render();
+              },
+            },
+            "ðŸ—ºï¸ Rute Hari Ini"
+          ),
+          el(
+            "button",
+            {
+              class: `mobile-native-tab-btn ${
+                mobileAppSubTab === "workload" ? "active" : ""
+              }`,
+              onclick: () => {
+                mobileAppSubTab = "workload";
+                render();
+              },
+            },
+            "ðŸ“Š Capaian"
+          ),
+          el(
+            "button",
+            {
+              class: `mobile-native-tab-btn ${
+                mobileAppSubTab === "profile" ? "active" : ""
+              }`,
+              onclick: () => {
+                mobileAppSubTab = "profile";
+                render();
+              },
+            },
+            "ðŸ‘¤ Profil"
+          )
+        )
+      ),
+
+      // 3. Tab Body
+      el(
+        "div",
+        { class: "mobile-native-content" },
+        renderMobileSubTabContent(
+          officer,
+          routeData,
+          filteredTickets,
+          officerTickets,
+          activeTickets,
+          prosesTickets,
+          selesaiTickets,
+          urgentTickets,
+          capacityBg,
+          capacityColor,
+          capacityText,
+          completionRate,
+          officerColor,
+          initials
+        )
+      ),
+
+      // 4. Floating Action Button (FAB) for Quick Report
+      el(
+        "button",
+        {
+          class: "mobile-fab-btn",
+          title: "Catat Temuan / Lapor Masalah Baru di Lapangan",
+          onclick: () => {
+            editingId = null;
+            formOpen = true;
+            render();
+          },
+        },
+        el("span", { style: "font-size:16px;" }, "âž•"),
+        el("span", {}, "Lapor Masalah")
+      ),
+
+      // 5. Desktop Switch Option (in case supervisor opens on phone)
+      el(
+        "div",
+        { class: "desktop-switch-banner" },
+        el(
+          "button",
+          {
+            class: "desktop-switch-btn",
+            onclick: () => {
+              window.location.hash = "#desktop";
+              render();
+            },
+          },
+          "ðŸ–¥ï¸ Buka Tampilan Monitor Kantor (Desktop)"
+        )
+      ),
+
+      // 6. Fixed Bottom Navigation Bar with Badge Counters
+      el(
+        "nav",
+        { class: "mobile-native-bottom-bar" },
+        el(
+          "button",
+          {
+            class: `mobile-native-bottom-tab ${
+              mobileAppSubTab === "tasks" ? "active" : ""
+            }`,
+            onclick: () => {
+              mobileAppSubTab = "tasks";
+              render();
+            },
+          },
+          activeTickets.length > 0
+            ? el(
+                "span",
+                { class: "mobile-nav-badge" },
+                String(activeTickets.length)
+              )
+            : null,
+          el("span", { style: "font-size:18px;" }, "ðŸ“‹"),
+          el("span", {}, "Tugas")
+        ),
+        el(
+          "button",
+          {
+            class: `mobile-native-bottom-tab ${
+              mobileAppSubTab === "route" ? "active" : ""
+            }`,
+            onclick: () => {
+              mobileAppSubTab = "route";
+              render();
+            },
+          },
+          routeData.orderedTickets.length > 0
+            ? el(
+                "span",
+                { class: "mobile-nav-badge" },
+                String(routeData.orderedTickets.length)
+              )
+            : null,
+          el("span", { style: "font-size:18px;" }, "ðŸ—ºï¸"),
+          el("span", {}, "Rute")
+        ),
+        el(
+          "button",
+          {
+            class: `mobile-native-bottom-tab ${
+              mobileAppSubTab === "workload" ? "active" : ""
+            }`,
+            onclick: () => {
+              mobileAppSubTab = "workload";
+              render();
+            },
+          },
+          el("span", { style: "font-size:18px;" }, "ðŸ“Š"),
+          el("span", {}, "Capaian")
+        ),
+        el(
+          "button",
+          {
+            class: `mobile-native-bottom-tab ${
+              mobileAppSubTab === "profile" ? "active" : ""
+            }`,
+            onclick: () => {
+              mobileAppSubTab = "profile";
+              render();
+            },
+          },
+          el("span", { style: "font-size:18px;" }, "ðŸ‘¤"),
+          el("span", {}, "Profil")
+        )
+      ),
+
+      // Modals
+      renderFinishModal(),
+      renderDetailModal(),
+      renderForm()
     );
   }
 
@@ -9233,7 +10238,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       el(
         "div",
         { class: "chart-header" },
-        el("h3", {}, "📊 Analytics & KPI Kinerja CASE"),
+        el("h3", {}, "ðŸ“Š Analytics & KPI Kinerja CASE"),
         el("span", { class: "total-badge" }, `Total: ${totalDiterima}`)
       ),
 
@@ -9287,7 +10292,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             style:
               "font-size:10.5px; font-weight:700; color:var(--ink-soft); margin-bottom:4px;",
           },
-          "🏆 PRODUKTIVITAS PETUGAS (SELESAI):"
+          "ðŸ† PRODUKTIVITAS PETUGAS (SELESAI):"
         ),
         el(
           "div",
@@ -9305,11 +10310,11 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              el("span", { class: "officer-done-name" }, `👷 ${off}`),
+              el("span", { class: "officer-done-name" }, `ðŸ‘· ${off}`),
               el(
                 "span",
                 { class: "officer-done-count" },
-                `${officerDoneCounts[off]} WO 📱`
+                `${officerDoneCounts[off]} WO ðŸ“±`
               )
             )
           )
@@ -9442,7 +10447,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "▲"
+            "â–²"
           ),
           el(
             "button",
@@ -9453,7 +10458,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "▼"
+            "â–¼"
           )
         )
       ),
@@ -9504,7 +10509,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         el(
           "div",
           { class: "quota-header" },
-          el("span", {}, "⚡ Auto Load-Balancer Kuota/Hari Kerja"),
+          el("span", {}, "âš¡ Auto Load-Balancer Kuota/Hari Kerja"),
           el("span", { style: "color:var(--accent);" }, `${MAX_PER_DAY} Kasus`)
         ),
         el("input", {
@@ -9562,12 +10567,12 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         class: "officer-select-inline " + (!item.officer ? "unassigned" : ""),
         onchange: (e: any) => assignOfficerToWO(item.id, e.target.value),
       },
-      el("option", { value: "" }, "⚠️ Pilih Petugas Lapangan"),
+      el("option", { value: "" }, "âš ï¸ Pilih Petugas Lapangan"),
       ...OFFICERS.map((off) =>
         el(
           "option",
           { value: off, selected: item.officer === off ? "selected" : null },
-          `👷 ${off}`
+          `ðŸ‘· ${off}`
         )
       )
     );
@@ -9590,7 +10595,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           ? "top-3"
           : "standard";
       const icon =
-        rank === 1 ? "👑" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "#";
+        rank === 1 ? "ðŸ‘‘" : rank === 2 ? "ðŸ¥ˆ" : rank === 3 ? "ðŸ¥‰" : "#";
       rankBadgeEl = el(
         "span",
         {
@@ -9611,7 +10616,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           class: "drag-handle",
           title: "Tahan dan seret kartu ini untuk mengatur urutan prioritas",
         },
-        "⠿ Drag"
+        "â ¿ Drag"
       );
 
       reorderControlsEl = el(
@@ -9628,7 +10633,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   moveUnassignedItem(item.id, "top");
                 },
               },
-              "⏫ Top"
+              "â« Top"
             )
           : null,
         !isFirstRank
@@ -9642,7 +10647,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   moveUnassignedItem(item.id, "up");
                 },
               },
-              "▲"
+              "â–²"
             )
           : null,
         !isLastRank
@@ -9656,7 +10661,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   moveUnassignedItem(item.id, "down");
                 },
               },
-              "▼"
+              "â–¼"
             )
           : null
       );
@@ -9827,19 +10832,19 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
         el(
           "span",
           { class: "score-tag", title: "Skor Urgensi Otomatis" },
-          `⭐ ${metrics.score.toFixed(2)}`
+          `â­ ${metrics.score.toFixed(2)}`
         ),
         officerSelectCard,
         item.area
           ? el(
               "span",
               { style: "font-weight:700; color:#92400E;" },
-              `• Area: ${item.area}`
+              `â€¢ Area: ${item.area}`
             )
           : null
       ),
       item.address
-        ? el("div", { class: "ticket-address" }, `📍 ${item.address}`)
+        ? el("div", { class: "ticket-address" }, `ðŸ“ ${item.address}`)
         : null,
       item.desc ? el("div", { class: "ticket-desc" }, item.desc) : null,
 
@@ -9869,7 +10874,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       el(
         "div",
         { class: "schedule-row-simple" },
-        el("span", {}, `📅 Pengerjaan: ${scheduledText}`),
+        el("span", {}, `ðŸ“… Pengerjaan: ${scheduledText}`),
         el(
           "span",
           { class: `deadline-tag ${deadlineInfo.statusClass}` },
@@ -9890,7 +10895,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               el(
                 "span",
                 { style: "font-size:10px; color:var(--ink-soft);" },
-                `📍 ${coordsObj.lat.toFixed(4)}, ${coordsObj.lng.toFixed(4)}`
+                `ðŸ“ ${coordsObj.lat.toFixed(4)}, ${coordsObj.lng.toFixed(4)}`
               ),
               el(
                 "a",
@@ -9900,7 +10905,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   rel: "noopener",
                   class: "btn-nav-route",
                 },
-                "🚗 Petunjuk Rute ↗"
+                "ðŸš— Petunjuk Rute â†—"
               )
             )
           )
@@ -9917,13 +10922,13 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 target: "_blank",
                 rel: "noopener",
               },
-              "💬 WhatsApp"
+              "ðŸ’¬ WhatsApp"
             )
           : null,
         el(
           "button",
           { class: "copy-btn", onclick: () => copyFieldFormat(item) },
-          "📋 Copy Format"
+          "ðŸ“‹ Copy Format"
         ),
         !isDone
           ? el(
@@ -9932,7 +10937,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 class: "resched-btn",
                 onclick: () => markAbsentAndReschedule(item.id),
               },
-              "🏠 Reschedule"
+              "ðŸ  Reschedule"
             )
           : null,
         !isDone && item.status !== "proses"
@@ -9974,7 +10979,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "🔍 Detail"
+          "ðŸ” Detail"
         ),
         el(
           "button",
@@ -9987,7 +10992,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "🖨️ SPK"
+          "ðŸ–¨ï¸ SPK"
         ),
         el(
           "button",
@@ -10232,7 +11237,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   style:
                     "margin:0 0 4px 0; font-size:15px; font-weight:800; color:var(--ink-dark); display:flex; align-items:center; gap:8px;",
                 },
-                "📋 Antrean Prioritas Work Order Belum Ditugaskan",
+                "ðŸ“‹ Antrean Prioritas Work Order Belum Ditugaskan",
                 el(
                   "span",
                   {
@@ -10248,7 +11253,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   style:
                     "margin:0; font-size:12px; color:var(--ink-soft); line-height:1.4;",
                 },
-                "Tahan & geser (Drag & Drop) kartu atau gunakan tombol ⏫ Top / ▲ / ▼ untuk memprioritaskan perbaikan kritis. Urutan teratas otomatis didahulukan dalam jadwal kalender kerja & fitur Auto-Assign."
+                "Tahan & geser (Drag & Drop) kartu atau gunakan tombol â« Top / â–² / â–¼ untuk memprioritaskan perbaikan kritis. Urutan teratas otomatis didahulukan dalam jadwal kalender kerja & fitur Auto-Assign."
               )
             ),
             el(
@@ -10262,7 +11267,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   title: "Naikkan seluruh kasus Urgent & Berisiko Tinggi ke antrean paling atas",
                   onclick: () => prioritizeAllUrgentUnassigned(),
                 },
-                "🔥 Prioritaskan Semua Urgent"
+                "ðŸ”¥ Prioritaskan Semua Urgent"
               ),
               el(
                 "button",
@@ -10272,7 +11277,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   title: "Tugaskan ke petugas lapangan berdasarkan urutan prioritas antrean",
                   onclick: () => autoAssignMerata(),
                 },
-                "⚖️ Auto-Assign Urutan Ini"
+                "âš–ï¸ Auto-Assign Urutan Ini"
               ),
               el(
                 "button",
@@ -10282,7 +11287,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   title: "Kembalikan urutan antrean ke kalkulasi SLA standar",
                   onclick: () => resetUnassignedOrderToDefault(),
                 },
-                "🔄 Reset Urutan Standar"
+                "ðŸ”„ Reset Urutan Standar"
               )
             )
           )
@@ -10291,7 +11296,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           ? el(
               "div",
               { class: "empty" },
-              "🎉 Luar biasa! Semua Work Order aktif sudah ditugaskan ke petugas lapangan."
+              "ðŸŽ‰ Luar biasa! Semua Work Order aktif sudah ditugaskan ke petugas lapangan."
             )
           : el(
               "div",
@@ -10336,7 +11341,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   el(
                     "div",
                     { class: "area-group-header" },
-                    el("span", {}, `🗺️ ${zoneName}`),
+                    el("span", {}, `ðŸ—ºï¸ ${zoneName}`),
                     el(
                       "span",
                       { class: "area-badge" },
@@ -10352,6 +11357,17 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       );
     };
 
+    const isMobileMode = checkIsMobileMode();
+    if (isMobileMode) {
+      const mobileApp = renderNativeMobileApp();
+      root.appendChild(mobileApp);
+      if (renderTimer) {
+        clearTimeout(renderTimer);
+        renderTimer = null;
+      }
+      return;
+    }
+
     const mastheadEl = el(
       "div",
       { class: "masthead" },
@@ -10364,7 +11380,13 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el("img", {
             class: "brand-logo",
             src: "/aetra-logo.svg",
-            alt: "Logo PT Aetra Air Tangerang",
+            alt: "Aetra Air Tangerang",
+            onerror: (e: any) => {
+              if (e && e.target) {
+                e.target.onerror = null;
+                e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 40' fill='none'><path d='M20 6 C20 6 12 18 12 25 C12 30 15.5 34 20 34 C24.5 34 28 30 28 25 C28 18 20 6 20 6 Z' fill='%23005BAB'/><circle cx='18' cy='23' r='2' fill='%2338BDF8'/><text x='36' y='25' fill='%23005BAB' font-family='sans-serif' font-weight='800' font-size='18' letter-spacing='-0.5'>AETRA</text></svg>";
+              }
+            },
           })
         ),
         el(
@@ -10379,7 +11401,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "span",
             { class: "unit" },
-            "Aetra Air Tangerang • Sistem Kendali Operasional Lapangan"
+            "Aetra Air Tangerang â€¢ Sistem Kendali Operasional Lapangan"
           )
         )
       ),
@@ -10395,7 +11417,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "📋 Board Antrean"
+          "ðŸ“‹ Board Antrean"
         ),
         el(
           "button",
@@ -10406,7 +11428,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "🗺️ Armada & Rute"
+          "ðŸ—ºï¸ Armada & Rute"
         ),
         el(
           "button",
@@ -10417,7 +11439,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "📊 KPI & Analisis"
+          "ðŸ“Š KPI & Analisis"
         ),
         el(
           "button",
@@ -10428,7 +11450,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "📅 Kalender & Kuota"
+          "ðŸ“… Kalender & Kuota"
         ),
         el(
           "button",
@@ -10445,7 +11467,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          "📱 HP Petugas (Mobile)"
+          "ðŸ“± HP Petugas (Mobile)"
         )
       ),
       el(
@@ -10475,7 +11497,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               }, 70);
             },
           },
-          "➕ Buat WO Baru"
+          "âž• Buat WO Baru"
         ),
         el(
           "div",
@@ -10500,7 +11522,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               "div",
               {
                 class: "masthead-sla-alert-badge",
-                title: `🚨 ${highPriorityBreaches.length} Work Order prioritas tinggi melewati SLA. Klik untuk buka radar pengalihan teknisi.`,
+                title: `ðŸš¨ ${highPriorityBreaches.length} Work Order prioritas tinggi melewati SLA. Klik untuk buka radar pengalihan teknisi.`,
                 onclick: () => {
                   slaRadarTargetTicketId = highPriorityBreaches[0].ticket.id;
                   slaRadarModalOpen = true;
@@ -10508,13 +11530,27 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 },
               },
               el("span", { class: "sla-beacon-dot" }),
-              `🚨 ${highPriorityBreaches.length} SLA Breach`
+              `ðŸš¨ ${highPriorityBreaches.length} SLA Breach`
             )
           : null,
         el(
           "div",
           { class: "live-clock-badge", title: "Waktu Lokal Tangerang (WIB)" },
-          `🕒 ${currentTimeString}`
+          `ðŸ•’ ${currentTimeString}`
+        ),
+        el(
+          "button",
+          {
+            class: "btn-secondary",
+            style:
+              "padding:5px 10px; font-weight:700; color:#0284C7; border-color:#0284C7; display:inline-flex; align-items:center; gap:4px;",
+            title: "Beralih ke Tampilan Khusus Handphone Petugas",
+            onclick: () => {
+              window.location.hash = "#mobile";
+              render();
+            },
+          },
+          "ðŸ“± Mode HP Petugas"
         ),
         el(
           "button",
@@ -10527,7 +11563,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               render();
             },
           },
-          isDarkMode ? "☀️ Terang" : "🌙 Gelap"
+          isDarkMode ? "â˜€ï¸ Terang" : "ðŸŒ™ Gelap"
         )
       )
     );
@@ -10562,7 +11598,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "div",
               { class: "fleet-map-header" },
-              el("span", {}, "🗺️ Fleet Map Sebaran Kasus")
+              el("span", {}, "ðŸ—ºï¸ Fleet Map Sebaran Kasus")
             ),
             el("div", { id: "fleet-map-container" })
           ),
@@ -10584,7 +11620,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 },
               },
               el("div", { class: "num" }, String(unassignedCount)),
-              el("div", { class: "lbl" }, "Unassigned 🎯")
+              el("div", { class: "lbl" }, "Unassigned ðŸŽ¯")
             ),
             el(
               "div",
@@ -10616,7 +11652,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 render();
               },
             },
-            "📈 Tren Kinerja 30 Hari (Completion Rate)"
+            "ðŸ“ˆ Tren Kinerja 30 Hari (Completion Rate)"
           ),
           renderCaseChart(),
           el(
@@ -10625,7 +11661,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             el(
               "div",
               { class: "chart-header" },
-              el("h3", {}, "📊 Komposisi Status Work Order")
+              el("h3", {}, "ðŸ“Š Komposisi Status Work Order")
             ),
             el(
               "div",
@@ -10646,7 +11682,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
               class: "search-input",
               type: "text",
               placeholder:
-                "🔍 Cari WO, Pelanggan, ID Meter, WA, Alamat, Area, CASE, atau Petugas...",
+                "ðŸ” Cari WO, Pelanggan, ID Meter, WA, Alamat, Area, CASE, atau Petugas...",
               value: searchQuery,
               oninput: (e: any) => {
                 searchQuery = e.target.value;
@@ -10679,7 +11715,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              `🎯 Unassigned (${unassignedCount})`
+              `ðŸŽ¯ Unassigned (${unassignedCount})`
             ),
             el(
               "span",
@@ -10692,7 +11728,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "🔥 Urgent"
+              "ðŸ”¥ Urgent"
             ),
             el(
               "span",
@@ -10705,7 +11741,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "⚙️ Diproses"
+              "âš™ï¸ Diproses"
             ),
             el(
               "span",
@@ -10718,7 +11754,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   render();
                 },
               },
-              "🏠 Reschedule"
+              "ðŸ  Reschedule"
             )
           ),
 
@@ -10743,7 +11779,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     render();
                   },
                 },
-                `🎯 Antrean Prioritas (${unassignedCount})`
+                `ðŸŽ¯ Antrean Prioritas (${unassignedCount})`
               ),
               el(
                 "button",
@@ -10775,7 +11811,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   class: "btn-autoassign",
                   onclick: () => autoAssignMerata(),
                 },
-                "⚖️ Auto-Assign"
+                "âš–ï¸ Auto-Assign"
               ),
               el(
                 "button",
@@ -10788,7 +11824,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     render();
                   },
                 },
-                "🔄 Email Parser"
+                "ðŸ”„ Email Parser"
               ),
               el(
                 "button",
@@ -10801,7 +11837,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     render();
                   },
                 },
-                "📜 History"
+                "ðŸ“œ History"
               ),
               el(
                 "button",
@@ -10810,7 +11846,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   title: "Ekspor daftar Work Order saat ini ke format CSV untuk pelaporan",
                   onclick: () => exportToCsv(base, itemScheduledDateMap),
                 },
-                "📄 Export CSV"
+                "ðŸ“„ Export CSV"
               ),
               el(
                 "button",
@@ -10818,7 +11854,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   class: "btn-excel",
                   onclick: () => exportToExcel(base, itemScheduledDateMap),
                 },
-                "📊 Export Excel"
+                "ðŸ“Š Export Excel"
               ),
               el(
                 "button",
@@ -10845,8 +11881,8 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                   },
                 },
                 selectedTicketIds.size > 0
-                  ? `☑️ ${selectedTicketIds.size} Dipilih (Batal)`
-                  : `☑️ Pilih Semua (${base.length})`
+                  ? `â˜‘ï¸ ${selectedTicketIds.size} Dipilih (Batal)`
+                  : `â˜‘ï¸ Pilih Semua (${base.length})`
               ),
               el(
                 "button",
@@ -10861,7 +11897,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                     render();
                   },
                 },
-                "📱 Buka HP Petugas"
+                "ðŸ“± Buka HP Petugas"
               )
             ),
             el(
@@ -10894,7 +11930,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       selected:
                         officerFilter === "unassigned" ? "selected" : null,
                     },
-                    "⚠️ Belum Ditugaskan (Unassigned)"
+                    "âš ï¸ Belum Ditugaskan (Unassigned)"
                   ),
                   ...OFFICERS.map((o) =>
                     el(
@@ -10958,7 +11994,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       value: "manual",
                       selected: sortMode === "manual" ? "selected" : null,
                     },
-                    "✋ Urutan Prioritas Dispatcher"
+                    "âœ‹ Urutan Prioritas Dispatcher"
                   ),
                   el(
                     "option",
@@ -10966,7 +12002,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       value: "prioritas",
                       selected: sortMode === "prioritas" ? "selected" : null,
                     },
-                    "⚡ Skor Urgensi -> Waktu -> Kluster"
+                    "âš¡ Skor Urgensi -> Waktu -> Kluster"
                   ),
                   el(
                     "option",
@@ -10975,7 +12011,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       selected:
                         sortMode === "waktu-terbaru" ? "selected" : null,
                     },
-                    "🕒 Waktu Terbaru"
+                    "ðŸ•’ Waktu Terbaru"
                   ),
                   el(
                     "option",
@@ -10983,7 +12019,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       value: "waktu-lama",
                       selected: sortMode === "waktu-lama" ? "selected" : null,
                     },
-                    "⏳ Waktu Terlama"
+                    "â³ Waktu Terlama"
                   ),
                   el(
                     "option",
@@ -10991,7 +12027,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                       value: "nama",
                       selected: sortMode === "nama" ? "selected" : null,
                     },
-                    "🔤 Nama (A-Z)"
+                    "ðŸ”¤ Nama (A-Z)"
                   )
                 )
               )
@@ -11014,7 +12050,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                 el(
                   "span",
                   {},
-                  `📅 Menampilkan Kasus Tanggal Kerja: ${fmtDateOnly(
+                  `ðŸ“… Menampilkan Kasus Tanggal Kerja: ${fmtDateOnly(
                     selectedDate
                   )}`
                 ),
@@ -11054,6 +12090,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
       renderBatchActionBar(base),
       activeTabBody,
       renderDetailModal(),
+      renderFinishModal(),
       renderSpkModal(),
       renderDailyRouteSheetModal(),
       renderSlaReassignModal()
@@ -11084,56 +12121,64 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
   }
 
   // Load awal saat halaman dibuka
-  // Mulai load data saat komponen di-mount
-    load();
+  load();
 
-    const onHashOrResize = () => {
-      if (isDisposed) return;
-      render();
-    };
+  const onHashOrResize = () => {
+    if (isDisposed) return;
+    render();
+  };
+  window.addEventListener("hashchange", onHashOrResize);
+  window.addEventListener("resize", onHashOrResize);
 
-    window.addEventListener("hashchange", onHashOrResize);
-    window.addEventListener("resize", onHashOrResize);
-
-    return () => {
-      isDisposed = true;
-      window.removeEventListener("hashchange", onHashOrResize);
-      window.removeEventListener("resize", onHashOrResize);
-      if (clockInterval) {
-        clearInterval(clockInterval);
-        clockInterval = null;
+  return () => {
+    isDisposed = true;
+    window.removeEventListener("hashchange", onHashOrResize);
+    window.removeEventListener("resize", onHashOrResize);
+    if (renderTimer) {
+      clearTimeout(renderTimer);
+      renderTimer = null;
+    }
+    if (clockInterval) {
+      clearInterval(clockInterval);
+      clockInterval = null;
+    }
+    Object.keys(activeMaps).forEach((id) => {
+      if (activeMaps[id] && activeMaps[id].remove) {
+        try {
+          activeMaps[id].remove();
+        } catch (e) {}
       }
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-      }
-      if (radarInterval) {
-        clearInterval(radarInterval);
-        radarInterval = null;
-      }
-      if (toastTimer) {
-        clearTimeout(toastTimer);
-        toastTimer = null;
-      }
-      if (perfChart) {
-        perfChart.destroy();
-        perfChart = null;
-      }
-      if (kpiSpeedoChart) {
-        kpiSpeedoChart.destroy();
-        kpiSpeedoChart = null;
-      }
-      if (catPieChart) {
-        catPieChart.destroy();
-        catPieChart = null;
-      }
-      if (leafletMap) {
-        leafletMap.remove();
-        leafletMap = null;
-      }
-    };
-  }
-
-  // Panggil mount pertama kali
-  return mount();
+      delete activeMaps[id];
+    });
+    if (fleetMapObj && fleetMapObj.remove) {
+      try {
+        fleetMapObj.remove();
+      } catch (e) {}
+      fleetMapObj = null;
+    }
+    if (routeMapTabObj && routeMapTabObj.remove) {
+      try {
+        routeMapTabObj.remove();
+      } catch (e) {}
+      routeMapTabObj = null;
+    }
+    if (donutChartObj && donutChartObj.destroy) {
+      try {
+        donutChartObj.destroy();
+      } catch (e) {}
+      donutChartObj = null;
+    }
+    if (analyticsDonutObj && analyticsDonutObj.destroy) {
+      try {
+        analyticsDonutObj.destroy();
+      } catch (e) {}
+      analyticsDonutObj = null;
+    }
+    if (completionTrendChartObj && completionTrendChartObj.destroy) {
+      try {
+        completionTrendChartObj.destroy();
+      } catch (e) {}
+      completionTrendChartObj = null;
+    }
+  };
 }
