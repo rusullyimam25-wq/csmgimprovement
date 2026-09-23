@@ -1,0 +1,24 @@
+{
+  "name": "AETRA Mobile - Sistem Lapangan Petugas",
+  "short_name": "AETRA Mobile",
+  "description": "Sistem Aplikasi Penanganan Minor Repair dan Keluhan Pelanggan AETRA Lapangan",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0284c7",
+  "theme_color": "#0284c7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
