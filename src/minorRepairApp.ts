@@ -8602,6 +8602,65 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
                               "🧭 Navigasi"
                             ),
                             // Work State Change: Mulai / Selesai
+                      !isDone
+                        ? el(
+                            "div",
+                            { style: "display:flex; gap:6px; flex:1;" },
+                            !isProses
+                              ? el(
+                                  "button",
+                                  {
+                                    class: "mobile-act-btn",
+                                    style: "background:#2563EB; color:#FFF; flex:1; white-space:nowrap;",
+                                    onclick: () => {
+                                      ticket.status = "proses";
+                                      saveLocal();
+                                      // @ts-ignore
+                                      if ((window as any).Swal) {
+                                        // @ts-ignore
+                                        (window as any).Swal.fire({
+                                          icon: "info",
+                                          title: "Pengerjaan Dimulai",
+                                          text: `Status WO ${ticket.id} diubah menjadi 'Sedang Dikerjakan'. Dashboard pengawas otomatis tersinkron.`,
+                                          timer: 1500,
+                                          showConfirmButton: false,
+                                        });
+                                      }
+                                      render();
+                                    },
+                                  },
+                                  "▶ Mulai"
+                                )
+                              : null,
+                            el(
+                              "button",
+                              {
+                                class: "mobile-act-btn",
+                                style:
+                                  "background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:#FFF; font-weight:800; flex:1.3; box-shadow:0 2px 6px rgba(16, 185, 129, 0.3); white-space:nowrap;",
+                                onclick: () => {
+                                  finishTargetId = ticket.id;
+                                  finishModalOpen = true;
+                                  render();
+                                },
+                              },
+                              "✅ Selesaikan"
+                            )
+                          )
+                        : el(
+                            "button",
+                            {
+                              class: "mobile-act-btn",
+                              style:
+                                "background:var(--panel-alt); border:1px solid var(--border); color:var(--ink-soft);",
+                              onclick: () => {
+                                detailTargetId = ticket.id;
+                                detailModalOpen = true;
+                                render();
+                              },
+                            },
+                            "👁️ Bukti & Detail"
+                          )
                             !isDone
                               ? !isProses
                                 ? el(
