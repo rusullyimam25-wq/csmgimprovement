@@ -11084,55 +11084,56 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
   }
 
   // Load awal saat halaman dibuka
-  load();
+  // Mulai load data saat komponen di-mount
+    load();
 
-  return () => {
-    isDisposed = true;
-    if (renderTimer) {
-      clearTimeout(renderTimer);
-      renderTimer = null;
-    }
-    if (clockInterval) {
-      clearInterval(clockInterval);
-      clockInterval = null;
-    }
-    Object.keys(activeMaps).forEach((id) => {
-      if (activeMaps[id] && activeMaps[id].remove) {
-        try {
-          activeMaps[id].remove();
-        } catch (e) {}
+    const onHashOrResize = () => {
+      if (isDisposed) return;
+      render();
+    };
+
+    window.addEventListener("hashchange", onHashOrResize);
+    window.addEventListener("resize", onHashOrResize);
+
+    return () => {
+      isDisposed = true;
+      window.removeEventListener("hashchange", onHashOrResize);
+      window.removeEventListener("resize", onHashOrResize);
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
       }
-      delete activeMaps[id];
-    });
-    if (fleetMapObj && fleetMapObj.remove) {
-      try {
-        fleetMapObj.remove();
-      } catch (e) {}
-      fleetMapObj = null;
-    }
-    if (routeMapTabObj && routeMapTabObj.remove) {
-      try {
-        routeMapTabObj.remove();
-      } catch (e) {}
-      routeMapTabObj = null;
-    }
-    if (donutChartObj && donutChartObj.destroy) {
-      try {
-        donutChartObj.destroy();
-      } catch (e) {}
-      donutChartObj = null;
-    }
-    if (analyticsDonutObj && analyticsDonutObj.destroy) {
-      try {
-        analyticsDonutObj.destroy();
-      } catch (e) {}
-      analyticsDonutObj = null;
-    }
-    if (completionTrendChartObj && completionTrendChartObj.destroy) {
-      try {
-        completionTrendChartObj.destroy();
-      } catch (e) {}
-      completionTrendChartObj = null;
-    }
-  };
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+      if (radarInterval) {
+        clearInterval(radarInterval);
+        radarInterval = null;
+      }
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+        toastTimer = null;
+      }
+      if (perfChart) {
+        perfChart.destroy();
+        perfChart = null;
+      }
+      if (kpiSpeedoChart) {
+        kpiSpeedoChart.destroy();
+        kpiSpeedoChart = null;
+      }
+      if (catPieChart) {
+        catPieChart.destroy();
+        catPieChart = null;
+      }
+      if (leafletMap) {
+        leafletMap.remove();
+        leafletMap = null;
+      }
+    };
+  }
+
+  // Panggil mount pertama kali
+  return mount();
 }
