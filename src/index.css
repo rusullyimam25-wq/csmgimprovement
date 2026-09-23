@@ -1760,6 +1760,159 @@ button { font-family: inherit; cursor: pointer; border: none; font-size: 11.5px;
   font-size: 9.5px;
   font-weight: 800;
 }
+/* Tampilan Mobile PWA Native */
+@media (max-width: 768px) {
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #f8fafc;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
 
+  .mobile-native-app-root {
+    min-height: 100dvh;
+    padding-bottom: 80px;
+    background: #f8fafc;
+    position: relative;
+  }
+
+  /* Status Bar HP Tiruan */
+  .mobile-phone-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    letter-spacing: 0.2px;
+  }
+
+  /* Header Aplikasi Mobile */
+  .mobile-native-header {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    padding: 10px 16px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+  }
+
+  .mobile-native-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mobile-native-brand h1 {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .mobile-native-brand span {
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  /* Search Bar Khusus Mobile */
+  .mobile-search-wrapper {
+    position: relative;
+    margin: 10px 0;
+  }
+
+  .mobile-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.6;
+  }
+
+  .mobile-search-input {
+    width: 100%;
+    padding: 8px 32px 8px 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    font-size: 12.5px;
+    box-sizing: border-box;
+  }
+
+  /* Floating Action Button (Tombol Melayang Lapor Masalah) */
+  .mobile-fab-btn {
+    position: fixed;
+    bottom: 74px;
+    right: 16px;
+    z-index: 99;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 16px;
+    font-size: 12.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
+    cursor: pointer;
+  }
+
+  /* Menu Navigasi Bawah Tetap (Bottom Navigation Bar) */
+  .mobile-native-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 10.5px;
+    font-weight: 600;
+    gap: 3px;
+    cursor: pointer;
+    position: relative;
+    flex: 1;
+  }
+
+  .mobile-nav-item.active {
+    color: #0284c7;
+    font-weight: 800;
+  }
+
+  .mobile-nav-badge {
+    position: absolute;
+    top: -2px;
+    right: 25%;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 10px;
+  }
+}
 
 
