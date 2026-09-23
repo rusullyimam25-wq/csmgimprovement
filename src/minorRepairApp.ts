@@ -2353,6 +2353,565 @@ Catatan: ${item.desc || "-"}`;
       photoAfterData = target.photoAfter || null;
     }
 
+    const cInfo = target ? catInfo(target.category) : { label: "Minor Repair", color: "#0284C7" };
+
+    let actionNotes = "";
+    let selectedMaterials: string[] = [];
+
+    const QUICK_ACTIONS = [
+      "Perbaikan pipa bocor sambungan meter",
+      "Ganti Stop Kran 1/2 inch baru",
+      "Kencangkan drat pipa & tambah Seal Tape",
+      "Penggantian unit meter air rusak",
+      "Ganti socket PVC & double nipple",
+      "Air diperiksa, aliran normal & tidak bocor",
+    ];
+
+    const MATERIAL_OPTIONS = [
+      "Stop Kran 1/2 inch",
+      "Socket Drat Luar PVC",
+      "Seal Tape Onda (1 roll)",
+      "Pipa PVC 1/2 inch (0.5m)",
+      "Klem Sadle 2 x 1/2 inch",
+      "Meter Air Baru 1/2 inch",
+    ];
+
+    function handleImageFile(file: File | undefined, callback: (url: string) => void) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800;
+
+          if (width > height && width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          } else if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            callback(canvas.toDataURL("image/jpeg", 0.7));
+          }
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    const camBeforeInput = el("input", {
+      type: "file",
+      accept: "image/*",
+      capture: "environment",
+      style: "display:none;",
+    }) as HTMLInputElement;
+    const fileBeforeInput = el("input", {
+      type: "file",
+      accept: "image/*",
+      style: "display:none;",
+    }) as HTMLInputElement;
+    const imgBeforePreview = el("img", {
+      class: "photo-preview-img",
+      src: photoBeforeData || "",
+      style: photoBeforeData ? "display:block; max-height:140px; border-radius:8px; margin-bottom:6px; object-fit:cover;" : "display:none; max-height:140px; border-radius:8px; margin-bottom:6px; object-fit:cover;",
+    }) as HTMLImageElement;
+
+    camBeforeInput.onchange = (e: any) =>
+      handleImageFile(e.target.files[0], (url) => {
+        photoBeforeData = url;
+        imgBeforePreview.src = url;
+        imgBeforePreview.style.display = "block";
+      });
+    fileBeforeInput.onchange = (e: any) =>
+      handleImageFile(e.target.files[0], (url) => {
+        photoBeforeData = url;
+        imgBeforePreview.src = url;
+        imgBeforePreview.style.display = "block";
+      });
+
+    const camAfterInput = el("input", {
+      type: "file",
+      accept: "image/*",
+      capture: "environment",
+      style: "display:none;",
+    }) as HTMLInputElement;
+    const fileAfterInput = el("input", {
+      type: "file",
+      accept: "image/*",
+      style: "display:none;",
+    }) as HTMLInputElement;
+    const imgAfterPreview = el("img", {
+      class: "photo-preview-img",
+      src: photoAfterData || "",
+      style: photoAfterData ? "display:block; max-height:140px; border-radius:8px; margin-bottom:6px; object-fit:cover;" : "display:none; max-height:140px; border-radius:8px; margin-bottom:6px; object-fit:cover;",
+    }) as HTMLImageElement;
+
+    camAfterInput.onchange = (e: any) =>
+      handleImageFile(e.target.files[0], (url) => {
+        photoAfterData = url;
+        imgAfterPreview.src = url;
+        imgAfterPreview.style.display = "block";
+      });
+    fileAfterInput.onchange = (e: any) =>
+      handleImageFile(e.target.files[0], (url) => {
+        photoAfterData = url;
+        imgAfterPreview.src = url;
+        imgAfterPreview.style.display = "block";
+      });
+
+    const canvas = el("canvas", {
+      class: "signature-pad",
+      width: "320",
+      height: "110",
+      style: "touch-action: none; background:#FAFAFA; border:1px dashed #CBD5E1; border-radius:8px; width:100%; max-width:100%; box-sizing:border-box;",
+    }) as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d")!;
+
+    let drawing = false;
+    let hasSignature = false;
+
+    function getCoords(e: MouseEvent | TouchEvent) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+
+    function startDrawing(e: MouseEvent | TouchEvent) {
+      drawing = true;
+      hasSignature = true;
+      const pos = getCoords(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+      if (e.cancelable) e.preventDefault();
+    }
+
+    function draw(e: MouseEvent | TouchEvent) {
+      if (!drawing) return;
+      const pos = getCoords(e);
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = isDarkMode ? "#0284C7" : "#0F172A";
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      if (e.cancelable) e.preventDefault();
+    }
+
+    function stopDrawing() {
+      drawing = false;
+      ctx.beginPath();
+    }
+
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseleave", stopDrawing);
+
+    canvas.addEventListener("touchstart", startDrawing, { passive: false });
+    canvas.addEventListener("touchmove", draw, { passive: false });
+    canvas.addEventListener("touchend", stopDrawing);
+
+    const notesTextarea = el("textarea", {
+      placeholder: "Contoh: Kebocoran pipa inlet telah dipotong dan disambung socket drat baru. Aliran air kembali lancar dan tidak ada rembesan.",
+      style: "width:100%; min-height:64px; padding:8px 10px; font-size:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--ink); box-sizing:border-box; font-family:inherit; resize:vertical;",
+    }) as HTMLTextAreaElement;
+
+    notesTextarea.oninput = (e: any) => {
+      actionNotes = e.target.value;
+    };
+
+    return el(
+      "div",
+      {
+        class: "modal-overlay",
+        onclick: (e: any) => {
+          if (e.target === e.currentTarget) {
+            finishModalOpen = false;
+            render();
+          }
+        },
+      },
+      el(
+        "div",
+        {
+          class: "modal-card",
+          style: "max-width: 540px;",
+        },
+        // Modal Header
+        el(
+          "div",
+          { class: "modal-header", style: "background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:#FFFFFF; padding:12px 16px;" },
+          el(
+            "div",
+            { style: "display:flex; align-items:center; gap:8px;" },
+            el("span", { style: "font-size:20px;" }, "✅"),
+            el(
+              "div",
+              {},
+              el(
+                "h3",
+                { style: "color:#FFFFFF; font-size:14px; margin:0; line-height:1.2;" },
+                `Penyelesaian WO Lapangan #${finishTargetId}`
+              ),
+              el(
+                "span",
+                { style: "font-size:11px; opacity:0.9;" },
+                target ? `${target.customer} • ${target.area || "Area Lapangan"}` : "Penyelesaian Langsung dari HP"
+              )
+            )
+          ),
+          el(
+            "button",
+            {
+              style: "background:rgba(255,255,255,0.2); border:none; color:#FFFFFF; width:28px; height:28px; border-radius:50%; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center;",
+              onclick: () => {
+                finishModalOpen = false;
+                render();
+              },
+            },
+            "✕"
+          )
+        ),
+
+        // Modal Body
+        el(
+          "div",
+          { class: "modal-body", style: "padding:14px 16px; display:flex; flex-direction:column; gap:14px;" },
+
+          // Ticket Info Mini Box
+          target
+            ? el(
+                "div",
+                {
+                  style:
+                    "background:var(--panel-alt); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:11.5px; display:flex; flex-direction:column; gap:4px;",
+                },
+                el(
+                  "div",
+                  { style: "display:flex; justify-content:space-between; align-items:center;" },
+                  el("span", { style: "font-weight:800; color:var(--ink);" }, target.customer),
+                  el("span", { style: "font-weight:700; color:#0284C7; font-family:monospace;" }, target.meterId ? `Mtr: ${target.meterId}` : "")
+                ),
+                el("div", { style: "color:var(--ink-soft); font-size:11px;" }, `📍 ${target.address || "-"}`),
+                el(
+                  "div",
+                  { style: "color:var(--accent); font-weight:700; font-size:11px; margin-top:2px;" },
+                  `Keluhan: [${target.category}] ${cInfo.label}`
+                )
+              )
+            : null,
+
+          // Quick Action Selection Chips
+          el(
+            "div",
+            {},
+            el(
+              "label",
+              { style: "display:block; font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:6px;" },
+              "Tindakan / Hasil Perbaikan:"
+            ),
+            el(
+              "div",
+              { style: "display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;" },
+              ...QUICK_ACTIONS.map((action) =>
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "btn-secondary",
+                    style: "font-size:10.5px; padding:4px 8px; border-radius:14px; background:var(--panel-alt); border:1px solid var(--border); cursor:pointer;",
+                    onclick: () => {
+                      if (notesTextarea.value.trim()) {
+                        notesTextarea.value = notesTextarea.value + ", " + action;
+                      } else {
+                        notesTextarea.value = action;
+                      }
+                      actionNotes = notesTextarea.value;
+                    },
+                  },
+                  `+ ${action}`
+                )
+              )
+            ),
+            notesTextarea
+          ),
+
+          // Materials Used Checklist
+          el(
+            "div",
+            {},
+            el(
+              "label",
+              { style: "display:block; font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:6px;" },
+              "Material / Suku Cadang Terpakai (Pilih):"
+            ),
+            el(
+              "div",
+              { style: "display:grid; grid-template-columns:1fr 1fr; gap:6px;" },
+              ...MATERIAL_OPTIONS.map((mat) => {
+                const isChecked = selectedMaterials.includes(mat);
+                const matBtn = el(
+                  "button",
+                  {
+                    type: "button",
+                    style: `font-size:10.5px; padding:6px 8px; border-radius:6px; text-align:left; border:1px solid ${
+                      isChecked ? "#0284C7" : "var(--border)"
+                    }; background:${isChecked ? "rgba(2, 132, 199, 0.12)" : "var(--bg)"}; color:${
+                      isChecked ? "#0284C7" : "var(--ink)"
+                    }; font-weight:${isChecked ? "800" : "600"}; cursor:pointer; display:flex; align-items:center; gap:6px;`,
+                    onclick: () => {
+                      if (selectedMaterials.includes(mat)) {
+                        selectedMaterials = selectedMaterials.filter((m) => m !== mat);
+                        matBtn.style.borderColor = "var(--border)";
+                        matBtn.style.background = "var(--bg)";
+                        matBtn.style.color = "var(--ink)";
+                        matBtn.style.fontWeight = "600";
+                      } else {
+                        selectedMaterials.push(mat);
+                        matBtn.style.borderColor = "#0284C7";
+                        matBtn.style.background = "rgba(2, 132, 199, 0.12)";
+                        matBtn.style.color = "#0284C7";
+                        matBtn.style.fontWeight = "800";
+                      }
+                    },
+                  },
+                  el("span", {}, "🔧"),
+                  el("span", {}, mat)
+                );
+                return matBtn;
+              })
+            )
+          ),
+
+          // Photos Row (Direct Camera & File)
+          el(
+            "div",
+            { style: "display:grid; grid-template-columns:1fr 1fr; gap:10px;" },
+            // Before Photo
+            el(
+              "div",
+              { style: "background:var(--panel-alt); padding:8px; border-radius:8px; border:1px solid var(--border);" },
+              el(
+                "label",
+                { style: "display:block; font-size:11px; font-weight:700; color:var(--ink); margin-bottom:4px;" },
+                "📸 Foto Sebelum (Before):"
+              ),
+              imgBeforePreview,
+              el(
+                "div",
+                { style: "display:flex; gap:4px;" },
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "btn-secondary",
+                    style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; background:#0284C7; color:#FFF; border:none; border-radius:6px; cursor:pointer;",
+                    onclick: () => camBeforeInput.click(),
+                  },
+                  "📷 Kamera"
+                ),
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "btn-secondary",
+                    style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; cursor:pointer;",
+                    onclick: () => fileBeforeInput.click(),
+                  },
+                  "📁 Galeri"
+                ),
+                camBeforeInput,
+                fileBeforeInput
+              )
+            ),
+            // After Photo
+            el(
+              "div",
+              { style: "background:var(--panel-alt); padding:8px; border-radius:8px; border:1px solid var(--border);" },
+              el(
+                "label",
+                { style: "display:block; font-size:11px; font-weight:700; color:var(--ink); margin-bottom:4px;" },
+                "📸 Foto Sesudah (After):"
+              ),
+              imgAfterPreview,
+              el(
+                "div",
+                { style: "display:flex; gap:4px;" },
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "btn-secondary",
+                    style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; background:#10B981; color:#FFF; border:none; border-radius:6px; cursor:pointer;",
+                    onclick: () => camAfterInput.click(),
+                  },
+                  "📷 Kamera"
+                ),
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "btn-secondary",
+                    style: "flex:1; font-size:10px; padding:6px 4px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; cursor:pointer;",
+                    onclick: () => fileAfterInput.click(),
+                  },
+                  "📁 Galeri"
+                ),
+                camAfterInput,
+                fileAfterInput
+              )
+            )
+          ),
+
+          // Digital Customer Signature
+          el(
+            "div",
+            { style: "background:var(--panel-alt); padding:8px 10px; border-radius:8px; border:1px solid var(--border);" },
+            el(
+              "div",
+              { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;" },
+              el(
+                "label",
+                { style: "font-size:11px; font-weight:700; color:var(--ink);" },
+                "✍️ Tanda Tangan Pelanggan Digital (Di Layar HP):"
+              ),
+              el(
+                "button",
+                {
+                  type: "button",
+                  class: "btn-secondary",
+                  style: "padding:2px 8px; font-size:10px; border-radius:4px; cursor:pointer;",
+                  onclick: () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    hasSignature = false;
+                  },
+                },
+                "🧹 Bersihkan TTD"
+              )
+            ),
+            canvas,
+            el(
+              "div",
+              { style: "font-size:9.5px; color:var(--ink-soft); margin-top:3px;" },
+              "Mintakan pelanggan menandatangani layar HP di area kotak di atas sebagai bukti pengerjaan."
+            )
+          )
+        ),
+
+        // Modal Footer
+        el(
+          "div",
+          { class: "modal-footer", style: "padding:12px 16px; background:var(--bg); border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end;" },
+          el(
+            "button",
+            {
+              type: "button",
+              class: "btn-secondary",
+              style: "padding:8px 14px; font-size:12px; cursor:pointer;",
+              onclick: () => {
+                finishModalOpen = false;
+                render();
+              },
+            },
+            "Batal"
+          ),
+          el(
+            "button",
+            {
+              type: "button",
+              class: "btn-primary",
+              style: "padding:8px 18px; font-size:12px; font-weight:800; background:linear-gradient(135deg, #10B981 0%, #059669 100%); border:none; display:flex; align-items:center; gap:6px; cursor:pointer;",
+              onclick: async () => {
+                if (target) {
+                  target.status = "selesai";
+                  target.photoBefore = photoBeforeData;
+                  target.photoAfter = photoAfterData;
+
+                  // Append action and materials into description
+                  let fullNoteParts = [target.desc || ""];
+                  if (actionNotes.trim()) {
+                    fullNoteParts.push(`[Tindakan Lapangan: ${actionNotes.trim()}]`);
+                  }
+                  if (selectedMaterials.length > 0) {
+                    fullNoteParts.push(`[Material: ${selectedMaterials.join(", ")}]`);
+                  }
+                  fullNoteParts.push(`[Diselesaikan via HP oleh ${target.officer || "Petugas Lapangan"} pd ${new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB]`);
+                  target.desc = fullNoteParts.filter(Boolean).join(" ");
+
+                  saveLocal();
+
+                  const fullDesc = buildFullDescription(
+                    target.desc,
+                    target.address,
+                    target.phone,
+                    target.rescheduledDate,
+                    target.officer,
+                    target.photoBefore,
+                    target.photoAfter
+                  );
+
+                  if (sb) {
+                    try {
+                      await sb
+                        .from(TABLE)
+                        .update({ status: "selesai", description: fullDesc })
+                        .eq("id", target.id);
+                    } catch (err) {
+                      console.warn("Supabase update error:", err);
+                    }
+                  }
+                }
+
+                finishModalOpen = false;
+
+                // @ts-ignore
+                if ((window as any).Swal) {
+                  // @ts-ignore
+                  (window as any).Swal.fire({
+                    icon: "success",
+                    title: "WO Berhasil Diselesaikan! 🎉",
+                    html: `
+                      <div style="font-size:12px; color:#334155; line-height:1.5;">
+                        <p>Tiket <b>${finishTargetId}</b> berhasil diselesaikan langsung dari handphone!</p>
+                        <p style="color:#059669; font-weight:700;">Status di dashboard kantor otomatis berubah menjadi 'Selesai'.</p>
+                      </div>
+                    `,
+                    timer: 2000,
+                    showConfirmButton: false,
+                  });
+                }
+                render();
+              },
+            },
+            "✅ Selesaikan & Simpan WO"
+          )
+        )
+      )
+    );
+  }
+    if (!finishModalOpen || !finishTargetId) return el("div");
+
+    let photoBeforeData: string | null = null;
+    let photoAfterData: string | null = null;
+
+    const target = complaints.find((c) => c.id === finishTargetId);
+    if (target) {
+      photoBeforeData = target.photoBefore || null;
+      photoAfterData = target.photoAfter || null;
+    }
+
     function handleImageFile(file: File | undefined, callback: (url: string) => void) {
       if (!file) return;
       const reader = new FileReader();
