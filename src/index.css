@@ -52,6 +52,40 @@ body { margin: 0; background: var(--bg); color: var(--ink); overflow-x: hidden; 
   padding: 12px 16px 16px;
 }
 
+@media (max-width: 850px) {
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden;
+    background: var(--bg);
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app-root {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+body.mobile-mode {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.mobile-mode #app-root {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  min-height: 100dvh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 .wrap { max-width: 1520px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; height: 100%; }
 
 .masthead {
@@ -769,7 +803,6 @@ button { font-family: inherit; cursor: pointer; border: none; font-size: 11.5px;
   color: var(--ink);
 }
 
-/* Responsif Layar HP: Modal Muncul dari Bawah (Bottom Sheet) */
 @media (max-width: 768px) {
   .modal-overlay {
     padding: 0;
@@ -791,35 +824,6 @@ button { font-family: inherit; cursor: pointer; border: none; font-size: 11.5px;
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
   }
-}
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(4px);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  animation: fadeIn 0.2s ease-out;
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.modal-card {
-  background: var(--panel);
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border);
-  width: 100%;
-  max-width: 680px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: var(--ink);
 }
 .modal-header {
   padding: 14px 18px;
@@ -1813,159 +1817,636 @@ button { font-family: inherit; cursor: pointer; border: none; font-size: 11.5px;
   font-size: 9.5px;
   font-weight: 800;
 }
-/* Tampilan Mobile PWA Native */
-@media (max-width: 768px) {
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: #f8fafc;
-    overflow-x: hidden;
-    -webkit-tap-highlight-color: transparent;
-  }
 
-  .mobile-native-app-root {
-    min-height: 100dvh;
-    padding-bottom: 80px;
-    background: #f8fafc;
-    position: relative;
-  }
+/* ============================================================
+   NATURAL MOBILE APPLICATION LAYOUT FOR FIELD WORKERS
+   (Tampilan web mobile responsif murni tanpa bingkai HP palsu)
+============================================================ */
+.natural-mobile-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
 
-  /* Status Bar HP Tiruan */
-  .mobile-phone-status-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 16px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #ffffff;
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    letter-spacing: 0.2px;
-  }
+.natural-mobile-app-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--ink);
+  position: relative;
+  box-sizing: border-box;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.08);
+}
 
-  /* Header Aplikasi Mobile */
-  .mobile-native-header {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    color: #ffffff;
-    padding: 10px 16px 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
-  }
+.mobile-native-app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--ink);
+  position: relative;
+  padding-bottom: 84px;
+  box-sizing: border-box;
+}
 
-  .mobile-native-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+@media (max-width: 640px) {
+  .natural-mobile-wrapper {
+    padding: 0 !important;
   }
-
-  .mobile-native-brand h1 {
-    font-size: 16px;
-    font-weight: 800;
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  .mobile-native-brand span {
-    font-size: 11px;
-    opacity: 0.85;
-  }
-
-  /* Search Bar Khusus Mobile */
-  .mobile-search-wrapper {
-    position: relative;
-    margin: 10px 0;
-  }
-
-  .mobile-search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 14px;
-    opacity: 0.6;
-  }
-
-  .mobile-search-input {
-    width: 100%;
-    padding: 8px 32px 8px 36px;
-    border-radius: 10px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    background: #ffffff;
-    font-size: 12.5px;
-    box-sizing: border-box;
-  }
-
-  /* Floating Action Button (Tombol Melayang Lapor Masalah) */
-  .mobile-fab-btn {
-    position: fixed;
-    bottom: 74px;
-    right: 16px;
-    z-index: 99;
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    color: #ffffff;
-    border: none;
-    border-radius: 50px;
-    padding: 10px 16px;
-    font-size: 12.5px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
-    cursor: pointer;
-  }
-
-  /* Menu Navigasi Bawah Tetap (Bottom Navigation Bar) */
-  .mobile-native-bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: #ffffff;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    z-index: 100;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .mobile-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: #64748b;
-    font-size: 10.5px;
-    font-weight: 600;
-    gap: 3px;
-    cursor: pointer;
-    position: relative;
-    flex: 1;
-  }
-
-  .mobile-nav-item.active {
-    color: #0284c7;
-    font-weight: 800;
-  }
-
-  .mobile-nav-badge {
-    position: absolute;
-    top: -2px;
-    right: 25%;
-    background: #ef4444;
-    color: #ffffff;
-    font-size: 9px;
-    font-weight: 800;
-    padding: 1px 5px;
-    border-radius: 10px;
+  .natural-mobile-app-shell {
+    max-width: 100% !important;
+    box-shadow: none !important;
   }
 }
 
 
+.mobile-native-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  color: #FFFFFF;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.25);
+}
+
+.dark-mode .mobile-native-header {
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mobile-native-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-native-brand h1 {
+  font-size: 15px;
+  font-weight: 900;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -0.2px;
+}
+
+.mobile-native-brand span {
+  font-size: 10px;
+  opacity: 0.9;
+  display: block;
+}
+
+/* PWA Install Banner Card */
+.mobile-pwa-banner {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border: 1px solid #BFDBFE;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 10px 14px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.dark-mode .mobile-pwa-banner {
+  background: #1E293B;
+  border-color: #3B82F6;
+}
+
+.mobile-pwa-banner-btn {
+  background: #0284C7;
+  color: #FFFFFF;
+  border: none;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(2, 132, 199, 0.3);
+  transition: transform 0.1s ease;
+}
+
+.mobile-pwa-banner-btn:active {
+  transform: scale(0.96);
+}
+
+/* Mobile Search Bar */
+.mobile-search-wrapper {
+  position: relative;
+  margin: 10px 14px 2px;
+}
+
+.mobile-search-input {
+  width: 100%;
+  padding: 9px 36px 9px 34px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  outline: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mobile-search-input:focus {
+  border-color: #0284C7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.mobile-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.mobile-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--border);
+  color: var(--ink-soft);
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+/* Floating Action Button for Field Report */
+.mobile-fab-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 18px;
+  z-index: 45;
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 30px;
+  padding: 10px 16px;
+  font-size: 12.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mobile-fab-btn:active {
+  transform: scale(0.95);
+}
+
+.mobile-native-officer-card {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-native-officer-select {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mobile-native-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mobile-native-stat-box {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mobile-native-stat-box:active {
+  transform: scale(0.97);
+}
+
+.mobile-native-stat-num {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.mobile-native-stat-label {
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.mobile-native-tabs {
+  display: flex;
+  background: var(--panel-alt);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+.mobile-native-tab-btn {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mobile-native-tab-btn.active {
+  background: var(--panel);
+  color: #0284C7;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.mobile-native-content {
+  flex: 1;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-native-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 540px;
+  margin: 0 auto;
+  z-index: 50;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 6px calc(10px + env(safe-area-inset-bottom));
+  box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.08);
+}
+
+.mobile-native-bottom-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 10px;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.mobile-native-bottom-tab.active {
+  color: #0284C7;
+  background: rgba(2, 132, 199, 0.09);
+}
+
+.mobile-nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 10px;
+  border: 1.5px solid var(--panel);
+}
+
+.desktop-switch-banner {
+  text-align: center;
+  padding: 16px 12px 24px;
+  margin-top: 8px;
+}
+
+.desktop-switch-btn {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.desktop-switch-btn:hover {
+  background: var(--panel-alt);
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+
+
+
+
+
+
+/* ============================================================
+   REALISTIC SMARTPHONE DEVICE SIMULATOR (STANDALONE WORK ORDER)
+============================================================ */
+.phone-standalone-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: radial-gradient(circle at 50% 15%, #1E293B 0%, #0F172A 100%);
+  color: #F8FAFC;
+  box-sizing: border-box;
+  padding: 16px 12px 32px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.phone-stage-topbar {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 8px 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.phone-stage-btn-back {
+  background: #0284C7;
+  color: #FFFFFF;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);
+}
+.phone-stage-btn-back:hover {
+  background: #0369A1;
+  transform: translateY(-1px);
+}
+
+.phone-stage-select-officer {
+  background: #1E293B;
+  color: #F8FAFC;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+}
+
+.phone-mockup-outer {
+  position: relative;
+  width: 100%;
+  max-width: 416px;
+  margin: 0 auto;
+}
+
+/* Hardware Buttons */
+.phone-hw-button-power {
+  position: absolute;
+  right: -13px;
+  top: 150px;
+  width: 4px;
+  height: 64px;
+  background: #475569;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.6);
+}
+
+.phone-hw-button-volup {
+  position: absolute;
+  left: -13px;
+  top: 130px;
+  width: 4px;
+  height: 50px;
+  background: #475569;
+  border-radius: 4px 0 0 4px;
+  box-shadow: -1px 0 3px rgba(0, 0, 0, 0.6);
+}
+
+.phone-hw-button-voldown {
+  position: absolute;
+  left: -13px;
+  top: 195px;
+  width: 4px;
+  height: 50px;
+  background: #475569;
+  border-radius: 4px 0 0 4px;
+  box-shadow: -1px 0 3px rgba(0, 0, 0, 0.6);
+}
+
+/* Outer Titanium Phone Shell */
+.phone-chassis {
+  width: 100%;
+  background: #090D16;
+  border-radius: 52px;
+  padding: 12px;
+  box-sizing: border-box;
+  box-shadow: 
+    0 35px 80px -15px rgba(0, 0, 0, 0.8),
+    0 0 0 1px #475569,
+    0 0 0 4px #1E293B,
+    0 0 0 8px #0F172A,
+    0 0 0 10px #334155,
+    inset 0 0 8px rgba(0, 0, 0, 0.7);
+  position: relative;
+}
+
+/* Phone Inner Screen (Pure Work Order Execution Screen) */
+.phone-inner-screen {
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 42px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 780px;
+  max-height: calc(100vh - 110px);
+  min-height: 640px;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* When viewing on real phone or fullscreen mode */
+.phone-fullscreen-mode {
+  padding: 0;
+  background: var(--bg);
+}
+.phone-fullscreen-mode .phone-stage-topbar {
+  max-width: 100%;
+  border-radius: 0;
+  margin-bottom: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+.phone-fullscreen-mode .phone-mockup-outer {
+  max-width: 600px;
+}
+.phone-fullscreen-mode .phone-chassis {
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.phone-fullscreen-mode .phone-inner-screen {
+  border-radius: 0;
+  height: auto;
+  min-height: 100vh;
+  max-height: none;
+}
+.phone-fullscreen-mode .phone-hw-button-power,
+.phone-fullscreen-mode .phone-hw-button-volup,
+.phone-fullscreen-mode .phone-hw-button-voldown {
+  display: none !important;
+}
+
+/* Dynamic Island Notch */
+.phone-notch-island {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 105px;
+  height: 24px;
+  background: #000000;
+  border-radius: 18px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.phone-notch-camera {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  box-shadow: inset 0 0 3px #0284C7;
+}
+
+.phone-notch-speaker {
+  width: 38px;
+  height: 4px;
+  background: #111827;
+  border-radius: 2px;
+}
+
+/* Top Phone Status Bar */
+.phone-glass-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #0284C7;
+  color: #FFFFFF;
+  user-select: none;
+  z-index: 80;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dark-mode .phone-glass-status-bar {
+  background: #0F172A;
+}
+
+/* Home Indicator Bar */
+.phone-home-indicator {
+  width: 130px;
+  height: 4.5px;
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 4px;
+  margin: 8px auto 6px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mobile-login-overlay {
+  animation: fadeIn 0.25s ease-out;
+}
