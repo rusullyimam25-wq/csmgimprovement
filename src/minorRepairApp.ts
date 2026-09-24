@@ -178,6 +178,13 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
   let selectedMobileOfficer: string = (storedOfficer && OFFICERS.includes(storedOfficer)) ? storedOfficer : OFFICERS[0];
   let mobileAppSubTab: "tasks" | "route" | "workload" | "profile" = "tasks";
   let mobileFilterStatus: "all" | "urgent" | "proses" | "selesai" = "all";
+  let isStandalonePhoneView: boolean = false;
+  if (typeof window !== "undefined") {
+    const hash = window.location.hash;
+    if (hash === "#handphone" || hash === "#mobile" || window.location.search.includes("mode=phone") || window.location.search.includes("mode=mobile")) {
+      isStandalonePhoneView = true;
+    }
+  }
   let mobileDeviceMode: "phone" | "fullscreen" = "phone";
   let mobileLastSyncTime: string = "Baru saja";
   let mobileGuideOpen: boolean = false;
@@ -197,13 +204,7 @@ export function initMinorRepairApp(rootElement: HTMLElement) {
   }
 
   function checkIsMobileMode(): boolean {
-    if (typeof window === "undefined") return false;
-    const hash = window.location.hash;
-    if (hash === "#desktop") return false;
-    if (hash === "#mobile" || window.location.search.includes("mode=mobile")) return true;
-    const isSmall = window.innerWidth <= 850;
-    const isTouch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    return isSmall || isTouch;
+    return false;
   }
 
   if (checkIsMobileMode()) {
@@ -1370,6 +1371,109 @@ Catatan: ${item.desc || "-"}`;
     return { dateMap, itemScheduledDateMap };
   }
 
+    function extractPerumahanName(address: string, fallbackArea: string): string {
+    if (!address) return fallbackArea || "-";
+    const m = address.match(/(?:perumahan|perum\.?|komplek|komp\.?|cluster|griya|taman|graha|vill?a)\s+[^,]+/i);
+    if (m && m[0]) return m[0].trim();
+    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[0];
+    return fallbackArea || "-";
+  }
+
+  const EXPORT_COLUMNS = [
+    "No",
+    "ACCT ID",
+    "NAMA PELANGGAN",
+    "ALAMAT",
+    "NAMA CASE",
+    "KETERANGAN",
+    "NO TLP",
+    "TANGGAL CASE",
+    "DATE",
+    "MONTH",
+    "YEAR",
+    "STATUS",
+    "TANGGAL COMPLETE",
+    "KETERANGAN CASE",
+    "CASE ID",
+    "CONTACT",
+    "PERUMAHAN",
+    "KECAMATAN",
+    "KETERANGAN CASE",
+    "CODE",
+    "PIC",
+    "SLA PROSEDUR",
+    "TARGET SLA",
+  ];
+
+  function getExportRowData(
+    item: ComplaintItem,
+    index: number,
+    itemScheduledDateMap: Record<string, Date>
+  ) {
+    const caseDetails = catInfo(item.category);
+    const deadlineInfo = getDeadlineInfo(item);
+    const receivedDate = new Date(item.receivedAt);
+
+    // Bersihkan deskripsi dari tag sistem
+    const cleanDesc = item.desc
+      ? item.desc.replace(/\[.*?\]/g, "").trim() || item.desc
+      : "-";
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dateCaseStr = `${receivedDate.getFullYear()}-${pad(receivedDate.getMonth() + 1)}-${pad(receivedDate.getDate())}`;
+    const dayStr = pad(receivedDate.getDate());
+    const monthStr = pad(receivedDate.getMonth() + 1);
+    const yearStr = String(receivedDate.getFullYear());
+
+    const statusText =
+      item.status === "selesai"
+        ? "SELESAI"
+        : item.status === "proses"
+        ? "DIPROSES"
+        : "OPEN";
+
+    let completeDateStr = "-";
+    if (item.status === "selesai") {
+      const dateMatch = (item.desc || "").match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})/);
+      if (dateMatch) {
+        completeDateStr = dateMatch[0];
+      } else {
+        const nowD = new Date();
+        completeDateStr = `${nowD.getFullYear()}-${pad(nowD.getMonth() + 1)}-${pad(nowD.getDate())}`;
+      }
+    }
+
+    const perumahan = extractPerumahanName(item.address, item.area);
+    const slaDays = getSlaDaysForCase(item.category);
+
+    return [
+      index + 1,
+      item.meterId || "-",
+      item.customer || "-",
+      item.address || "-",
+      caseDetails.label,
+      cleanDesc,
+      item.phone || "-",
+      dateCaseStr,
+      dayStr,
+      monthStr,
+      yearStr,
+      statusText,
+      completeDateStr,
+      caseDetails.label,
+      item.id,
+      item.phone || "-",
+      perumahan,
+      item.area || "-",
+      caseDetails.label,
+      item.category,
+      item.officer || "Belum Ditugaskan",
+      `${slaDays} Hari`,
+      deadlineInfo.deadlineText,
+    ];
+  }
+
   function exportToExcel(
     itemsToExport: ComplaintItem[],
     itemScheduledDateMap: Record<string, Date>
@@ -1387,46 +1491,43 @@ Catatan: ${item.desc || "-"}`;
       return;
     }
 
-    const excelData = itemsToExport.map((item) => {
-      const caseDetails = catInfo(item.category);
-      const metrics = computeUrgencyMetrics(item);
-      const deadlineInfo = getDeadlineInfo(item);
-      const schedDate = itemScheduledDateMap[item.id];
-
-      return {
-        "ID Work Order": item.id,
-        "Nama Pelanggan": item.customer || "-",
-        "No WhatsApp": item.phone || "-",
-        "ID Meter": item.meterId || "-",
-        "Petugas Lapangan": item.officer || "Belum Ditugaskan",
-        "Alamat Lengkap": item.address || "-",
-        "Area / Zona": item.area || "-",
-        "Kode CASE": item.category,
-        "Kategori Keluhan": caseDetails.label,
-        "Skor Urgensi": metrics.score,
-        "Level Urgensi": metrics.level.toUpperCase(),
-        Deskripsi: item.desc || "-",
-        "Waktu Diterima": fmtDateTime(new Date(item.receivedAt)),
-        "Jadwal Pengerjaan": schedDate ? fmtDateOnly(schedDate) : "-",
-        "Batas SLA (14 Hari)": deadlineInfo.deadlineText,
-        "Status SLA": deadlineInfo.statusText,
-        "Status Work Order":
-          item.status === "selesai"
-            ? "Selesai"
-            : item.status === "proses"
-            ? "Dalam Proses"
-            : "Belum Dikerjakan",
-      };
-    });
-
     // @ts-ignore
     const XLSX = (window as any).XLSX;
     if (!XLSX) return;
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Komplain");
+    const aoaData: any[][] = [EXPORT_COLUMNS];
+    itemsToExport.forEach((item, idx) => {
+      aoaData.push(getExportRowData(item, idx, itemScheduledDateMap));
+    });
 
+    const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+    worksheet["!cols"] = [
+      { wch: 6 },  // No
+      { wch: 14 }, // ACCT ID
+      { wch: 25 }, // NAMA PELANGGAN
+      { wch: 38 }, // ALAMAT
+      { wch: 26 }, // NAMA CASE
+      { wch: 36 }, // KETERANGAN
+      { wch: 16 }, // NO TLP
+      { wch: 14 }, // TANGGAL CASE
+      { wch: 7 },  // DATE
+      { wch: 8 },  // MONTH
+      { wch: 8 },  // YEAR
+      { wch: 14 }, // STATUS
+      { wch: 18 }, // TANGGAL COMPLETE
+      { wch: 26 }, // KETERANGAN CASE
+      { wch: 16 }, // CASE ID
+      { wch: 16 }, // CONTACT
+      { wch: 26 }, // PERUMAHAN
+      { wch: 18 }, // KECAMATAN
+      { wch: 26 }, // KETERANGAN CASE
+      { wch: 10 }, // CODE
+      { wch: 22 }, // PIC
+      { wch: 15 }, // SLA PROSEDUR
+      { wch: 22 }, // TARGET SLA
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Minor Repair");
     const dateStr = formatDateKey(new Date());
     XLSX.writeFile(workbook, `Laporan_Minor_Repair_${dateStr}.xlsx`);
   }
@@ -1448,28 +1549,6 @@ Catatan: ${item.desc || "-"}`;
       return;
     }
 
-    const headers = [
-      "ID Work Order",
-      "Nama Pelanggan",
-      "No WhatsApp",
-      "ID Meter",
-      "Petugas Lapangan",
-      "Alamat Lengkap",
-      "Area / Zona",
-      "Kode CASE",
-      "Kategori Keluhan",
-      "Prioritas",
-      "Skor Urgensi",
-      "Level Urgensi",
-      "Deskripsi",
-      "Koordinat GPS",
-      "Waktu Diterima",
-      "Jadwal Pengerjaan",
-      "Batas SLA (14 Hari)",
-      "Status SLA",
-      "Status Work Order",
-    ];
-
     const escapeCsvField = (val: any): string => {
       if (val === null || val === undefined) return '""';
       const str = String(val).replace(/"/g, '""');
@@ -1477,41 +1556,11 @@ Catatan: ${item.desc || "-"}`;
     };
 
     const rows: string[] = [
-      headers.map(escapeCsvField).join(","),
+      EXPORT_COLUMNS.map(escapeCsvField).join(","),
     ];
 
-    itemsToExport.forEach((item) => {
-      const caseDetails = catInfo(item.category);
-      const metrics = computeUrgencyMetrics(item);
-      const deadlineInfo = getDeadlineInfo(item);
-      const schedDate = itemScheduledDateMap[item.id];
-
-      const rowValues = [
-        item.id,
-        item.customer || "-",
-        item.phone || "-",
-        item.meterId || "-",
-        item.officer || "Belum Ditugaskan",
-        item.address || "-",
-        item.area || "-",
-        item.category,
-        caseDetails.label,
-        item.urgent ? "Darurat (Urgent)" : "Normal",
-        metrics.score,
-        metrics.level.toUpperCase(),
-        item.desc || "-",
-        item.coords || "-",
-        fmtDateTime(new Date(item.receivedAt)),
-        schedDate ? fmtDateOnly(schedDate) : "-",
-        deadlineInfo.deadlineText,
-        deadlineInfo.statusText,
-        item.status === "selesai"
-          ? "Selesai"
-          : item.status === "proses"
-          ? "Dalam Proses"
-          : "Belum Dikerjakan",
-      ];
-
+    itemsToExport.forEach((item, idx) => {
+      const rowValues = getExportRowData(item, idx, itemScheduledDateMap);
       rows.push(rowValues.map(escapeCsvField).join(","));
     });
 
@@ -1533,7 +1582,7 @@ Catatan: ${item.desc || "-"}`;
       (window as any).Swal.fire({
         icon: "success",
         title: "Export CSV Berhasil!",
-        text: `${itemsToExport.length} Work Order berhasil diunduh ke format CSV.`,
+        text: `${itemsToExport.length} Work Order berhasil diunduh dengan template pelaporan 23 kolom lengkap.`,
         timer: 1800,
         showConfirmButton: false,
       });
@@ -2160,7 +2209,19 @@ Catatan: ${item.desc || "-"}`;
     }
     children.flat().forEach((c) => {
       if (c === null || c === undefined) return;
-      e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+      if (typeof c === "string") {
+        if (/<[a-z][\s\S]*>/i.test(c)) {
+          const temp = document.createElement("span");
+          temp.innerHTML = c;
+          while (temp.firstChild) {
+            e.appendChild(temp.firstChild);
+          }
+        } else {
+          e.appendChild(document.createTextNode(c));
+        }
+      } else {
+        e.appendChild(c);
+      }
     });
     return e;
   }
@@ -10120,6 +10181,143 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
     );
   }
 
+
+  function renderStandaloneSmartphoneView(): HTMLElement {
+    const isFullscreen = mobileDeviceMode === "fullscreen" || (typeof window !== "undefined" && window.innerWidth <= 768);
+    const activeOfficer = selectedMobileOfficer || OFFICERS[0];
+
+    // Stage Topbar (Control Bar for Supervisor / Tester)
+    const stageTopbar = el(
+      "div",
+      { class: "phone-stage-topbar" },
+      el(
+        "div",
+        { style: "display:flex; align-items:center; gap:10px; flex-wrap:wrap;" },
+        el(
+          "button",
+          {
+            class: "phone-stage-btn-back",
+            title: "Kembali ke Dashboard Utama Pengawas",
+            onclick: () => {
+              isStandalonePhoneView = false;
+              mobileDeviceMode = "phone";
+              window.location.hash = "#desktop";
+              render();
+            },
+          },
+          "⬅️ Kembali ke Dashboard Utama"
+        ),
+        el(
+          "div",
+          { style: "display:flex; align-items:center; gap:6px;" },
+          el(
+            "span",
+            { style: "font-size:11px; font-weight:700; color:#94A3B8;" },
+            "Teknisi:"
+          ),
+          el(
+            "select",
+            {
+              class: "phone-stage-select-officer",
+              value: activeOfficer,
+              onchange: (e: any) => {
+                selectedMobileOfficer = e.target.value;
+                render();
+              },
+            },
+            ...OFFICERS.map((off) => {
+              const count = complaints.filter(
+                (c) => c.officer === off && c.status !== "selesai"
+              ).length;
+              return el(
+                "option",
+                { value: off, selected: off === activeOfficer },
+                `👷 ${off} (${count} WO Aktif)`
+              );
+            })
+          )
+        )
+      ),
+      el(
+        "div",
+        { style: "display:flex; align-items:center; gap:8px; flex-wrap:wrap;" },
+        el(
+          "span",
+          {
+            style:
+              "font-size:10.5px; font-weight:700; color:#10B981; background:rgba(16,185,129,0.15); padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;",
+          },
+          "🟢 Realtime 2-Arah Terhubung"
+        ),
+        el(
+          "button",
+          {
+            class: "btn-secondary",
+            style:
+              "font-size:11px; padding:5px 10px; color:#F8FAFC; border-color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); cursor:pointer;",
+            onclick: () => {
+              mobileDeviceMode =
+                mobileDeviceMode === "phone" ? "fullscreen" : "phone";
+              render();
+            },
+          },
+          mobileDeviceMode === "phone" ? "🖥️ Layar Penuh HP" : "📱 Mockup Handphone"
+        )
+      )
+    );
+
+    // If fullscreen mode or on real mobile viewport
+    if (isFullscreen) {
+      return el(
+        "div",
+        { class: "phone-standalone-stage phone-fullscreen-mode" },
+        stageTopbar,
+        el(
+          "div",
+          { class: "phone-mockup-outer" },
+          renderNativeMobileApp()
+        )
+      );
+    }
+
+    // Realistic Smartphone Device Chassis
+    return el(
+      "div",
+      { class: "phone-standalone-stage" },
+      stageTopbar,
+      el(
+        "div",
+        { class: "phone-mockup-outer" },
+        // Hardware buttons on outer shell
+        el("div", { class: "phone-hw-button-power", title: "Tombol Power" }),
+        el("div", { class: "phone-hw-button-volup", title: "Volume Up" }),
+        el("div", { class: "phone-hw-button-voldown", title: "Volume Down" }),
+        // Titanium Chassis
+        el(
+          "div",
+          { class: "phone-chassis" },
+          // Dynamic Island Notch
+          el(
+            "div",
+            { class: "phone-notch-island" },
+            el("div", { class: "phone-notch-camera" }),
+            el("div", { class: "phone-notch-speaker" }),
+            el("div", { style: "width:8px;" })
+          ),
+          // Inner Phone Screen (Pure Work Order Execution Screen)
+          el(
+            "div",
+            { class: "phone-inner-screen" },
+            renderNativeMobileApp(),
+            // Bottom Home Indicator Bar
+            el("div", { class: "phone-home-indicator" })
+          )
+        )
+      )
+    );
+  }
+
+
   function initFleetMap() {
     const container = document.getElementById("fleet-map-container");
     if (!container) return;
@@ -11391,7 +11589,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
 
     const isMobileMode = checkIsMobileMode();
     if (isMobileMode) {
-      const mobileApp = renderNativeMobileApp();
+      const mobileApp = renderStandaloneSmartphoneView();
       root.appendChild(mobileApp);
       if (renderTimer) {
         clearTimeout(renderTimer);
@@ -11427,7 +11625,7 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           el(
             "h1",
             {},
-            "Papan Kerja Minor Repair",
+            "Dashboard Komplain",
             el("span", { class: "brand-live-pill" }, "Live")
           ),
           el(
@@ -11483,23 +11681,6 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
             },
           },
           "📅 Kalender & Kuota"
-        ),
-        el(
-          "button",
-          {
-            class: `workspace-tab ${currentTab === "mobile" ? "active" : ""}`,
-            style:
-              currentTab === "mobile"
-                ? ""
-                : "border-color:rgba(16,185,129,0.5); background:rgba(16,185,129,0.08); font-weight:700;",
-            title:
-              "Buka antarmuka khusus smartphone handphone petugas di lapangan (tersinkron realtime)",
-            onclick: () => {
-              currentTab = "mobile";
-              render();
-            },
-          },
-          "📱 HP Petugas (Mobile)"
         )
       ),
       el(
@@ -11571,18 +11752,50 @@ Deskripsi : Air mati total sejak kemarin sore dan pipa sebelum meteran bocor der
           `🕒 ${currentTimeString}`
         ),
         el(
-          "button",
-          {
-            class: "btn-secondary",
-            style:
-              "padding:5px 10px; font-weight:700; color:#0284C7; border-color:#0284C7; display:inline-flex; align-items:center; gap:4px;",
-            title: "Beralih ke Tampilan Khusus Handphone Petugas",
-            onclick: () => {
-              window.location.hash = "#mobile";
-              render();
+          "div",
+          { style: "display:flex; align-items:center; gap:6px;" },
+          el(
+            "a",
+            {
+              class: "btn-secondary",
+              href: "/mobile.html",
+              target: "_blank",
+              rel: "noopener noreferrer",
+              style:
+                "font-size:12px; font-weight:800; color:#0284C7; background:rgba(2,132,199,0.08); border-color:#0284C7; display:inline-flex; align-items:center; gap:5px; text-decoration:none; padding:6px 12px; border-radius:8px;",
+              title:
+                "Buka Aplikasi HP Petugas Lapangan di Link Terpisah (/mobile.html)",
             },
-          },
-          "📱 Mode HP Petugas"
+            el("span", { style: "font-size:14px;" }, "📱"),
+            el("span", {}, "Link Khusus HP Petugas"),
+            el("span", { style: "font-size:11px; opacity:0.8;" }, "↗")
+          ),
+          el(
+            "button",
+            {
+              class: "btn-secondary",
+              style:
+                "font-size:11.5px; padding:6px 10px; border-radius:8px; cursor:pointer;",
+              title: "Salin Link Aplikasi HP Petugas Lapangan",
+              onclick: () => {
+                const mobileUrl = `${window.location.origin}/mobile.html`;
+                navigator.clipboard.writeText(mobileUrl).then(() => {
+                  // @ts-ignore
+                  if ((window as any).Swal) {
+                    // @ts-ignore
+                    (window as any).Swal.fire({
+                      icon: "success",
+                      title: "Link HP Petugas Disalin!",
+                      html: `<div style="font-size:13px; margin-top:6px;">Link terpisah untuk aplikasi teknisi lapangan:<br><b style="color:#0284C7;">${mobileUrl}</b><br><br>Siap dibagikan via WhatsApp.</div>`,
+                      timer: 3500,
+                      confirmButtonColor: "#0284C7",
+                    });
+                  }
+                });
+              },
+            },
+            "📋 Salin Link"
+          )
         ),
         el(
           "button",
