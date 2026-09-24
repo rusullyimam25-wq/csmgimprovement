@@ -112,7 +112,7 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
 
   // State
   let complaints: ComplaintItem[] = [];
-  let selectedOfficer = OFFICERS[0];
+  let selectedOfficer = OFFICERS[1]; // Agus Setiawan (default as in portal screenshot)
   try {
     const saved = localStorage.getItem(STORED_OFFICER_KEY);
     if (saved && OFFICERS.includes(saved)) {
@@ -122,9 +122,10 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
 
   // Supabase Auth & Login State
   let isLoggedIn = false;
-  let isCheckingSession = true;
+  let isCheckingSession = false;
   let authUser: any = null;
-  let loginEmail = "budi.santoso@aetra.co.id";
+  const initialOfficerPrefix = selectedOfficer.toLowerCase().replace(/\s+/g, ".");
+  let loginEmail = `${initialOfficerPrefix}@aetra.co.id`;
   let loginPassword = "Password123!";
   let loginError = "";
   let loginNotice = "";
@@ -465,21 +466,32 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
         "button",
         {
           type: "button",
-          style: `display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; border:1.5px solid ${isSelected ? color.main : "var(--border)"}; background:${isSelected ? color.bg : "var(--panel)"}; cursor:pointer; text-align:left; transition:all 0.15s ease; box-shadow:0 1px 3px rgba(0,0,0,0.05);`,
-          onclick: () => handleQuickOfficerLogin(off),
+          style: `display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:12px; border:${
+            isSelected ? `2px solid ${color.main}` : "1.5px solid #E2E8F0"
+          }; background:#FFFFFF; cursor:pointer; text-align:left; transition:all 0.15s ease; box-shadow:${
+            isSelected ? "0 2px 8px rgba(5,150,105,0.18)" : "0 1px 3px rgba(0,0,0,0.02)"
+          };`,
+          onclick: () => {
+            selectedOfficer = off;
+            const prefix = off.toLowerCase().replace(/\s+/g, ".");
+            loginEmail = `${prefix}@aetra.co.id`;
+            loginPassword = "Password123!";
+            render();
+          },
+          ondblclick: () => handleQuickOfficerLogin(off),
         },
         el(
           "div",
           {
-            style: `width:28px; height:28px; border-radius:50%; background:${color.main}; color:#FFF; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0;`,
+            style: `width:32px; height:32px; border-radius:50%; background:${color.main}; color:#FFF; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;`,
           },
           initials
         ),
         el(
           "div",
           { style: "flex:1; min-width:0;" },
-          el("div", { style: "font-size:11.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, off),
-          el("div", { style: "font-size:10px; color:#0284C7; font-weight:600;" }, "⚡ 1-Klik Masuk")
+          el("div", { style: "font-size:12px; font-weight:800; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, off),
+          el("div", { style: "font-size:10.5px; color:#0284C7; font-weight:600; margin-top:1px;" }, "⚡ 1-Klik Masuk")
         )
       );
     });
@@ -487,15 +499,15 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
     return el(
       "div",
       {
-        class: "mobile-login-overlay",
+        class: "mobile-login-stage-wrapper",
         style:
-          "display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px 14px 40px; min-height:calc(100vh - 40px); background:linear-gradient(180deg, #F0F9FF 0%, #E0F2FE 25%, var(--bg) 100%);",
+          "min-height:100vh; min-height:100dvh; width:100%; display:flex; justify-content:center; align-items:flex-start; padding:0; background:linear-gradient(180deg, #F0F9FF 0%, #E0F2FE 30%, #EDF4FA 100%); box-sizing:border-box; font-family:'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;",
       },
       el(
         "div",
         {
           style:
-            "width:100%; max-width:440px; background:var(--panel); border:1px solid var(--border); border-radius:20px; box-shadow:0 12px 36px rgba(2, 132, 199, 0.12); padding:22px 18px; box-sizing:border-box;",
+            "width:100%; max-width:440px; margin:0 auto; background:#FFFFFF; border:1px solid rgba(226, 232, 240, 0.85); border-radius:28px 28px 0 0; box-shadow:0 12px 40px rgba(2, 132, 199, 0.12), 0 2px 10px rgba(0, 0, 0, 0.04); padding:28px 22px 24px; box-sizing:border-box;",
         },
         // Top Brand Logo
         el(
@@ -505,17 +517,17 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
             "div",
             {
               style:
-                "width:52px; height:52px; border-radius:16px; background:linear-gradient(135deg, #0284C7 0%, #0369A1 100%); display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 6px 16px rgba(2, 132, 199, 0.35);",
+                "width:54px; height:54px; border-radius:16px; background:linear-gradient(135deg, #0284C7 0%, #0369A1 100%); display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 20px rgba(2, 132, 199, 0.35);",
             },
             el("span", { style: "font-size:26px;" }, "💧")
           ),
-          el("h2", { style: "margin:0 0 4px 0; font-size:18px; font-weight:900; color:#0369A1; letter-spacing:-0.3px;" }, "AETRA Mobile"),
-          el("div", { style: "font-size:12px; font-weight:700; color:var(--ink);" }, "Portal Masuk Petugas Lapangan"),
+          el("h2", { style: "margin:0 0 4px 0; font-size:20px; font-weight:900; color:#0369A1; letter-spacing:-0.3px;" }, "AETRA Mobile"),
+          el("div", { style: "font-size:12.5px; font-weight:800; color:#1E293B;" }, "Portal Masuk Petugas Lapangan"),
           el(
             "div",
             {
               style:
-                "display:inline-flex; align-items:center; gap:5px; margin-top:8px; background:rgba(16,185,129,0.12); color:#059669; border:1px solid rgba(16,185,129,0.25); font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:12px;",
+                "display:inline-flex; align-items:center; gap:5px; margin-top:8px; background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:11px; font-weight:700; padding:4px 14px; border-radius:9999px;",
             },
             el("span", { style: "font-size:11px;" }, "🔒"),
             el("span", {}, "Supabase Authentication")
@@ -530,14 +542,14 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
             "div",
             {
               style:
-                "font-size:11px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;",
+                "font-size:10.5px; font-weight:800; color:#64748B; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;",
             },
-            el("span", {}, "⚡ Akses Cepat Petugas Lapangan:"),
-            el("span", { style: "font-size:10px; color:#0284C7; font-weight:600;" }, "Pilih & Masuk")
+            el("span", {}, "⚡ AKSES CEPAT PETUGAS LAPANGAN:"),
+            el("span", { style: "font-size:10.5px; color:#0284C7; font-weight:700;" }, "PILIH & MASUK")
           ),
           el(
             "div",
-            { style: "display:grid; grid-template-columns:1fr 1fr; gap:7px;" },
+            { style: "display:grid; grid-template-columns:1fr 1fr; gap:8px;" },
             ...officerPresetButtons
           )
         ),
@@ -545,10 +557,10 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
         // Divider
         el(
           "div",
-          { style: "display:flex; align-items:center; gap:10px; margin:14px 0;" },
-          el("div", { style: "flex:1; height:1px; background:var(--border);" }),
-          el("span", { style: "font-size:10.5px; color:var(--ink-soft); font-weight:600;" }, "atau masuk dengan email Supabase"),
-          el("div", { style: "flex:1; height:1px; background:var(--border);" })
+          { style: "display:flex; align-items:center; gap:10px; margin:16px 0 14px;" },
+          el("div", { style: "flex:1; height:1px; background:#E2E8F0;" }),
+          el("span", { style: "font-size:11px; color:#64748B; font-weight:600;" }, "atau masuk dengan email Supabase"),
+          el("div", { style: "flex:1; height:1px; background:#E2E8F0;" })
         ),
 
         // Form
@@ -585,7 +597,7 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
           el(
             "div",
             {},
-            el("label", { style: "display:block; font-size:11px; font-weight:700; color:var(--ink); margin-bottom:4px;" }, "Email Petugas:"),
+            el("label", { style: "display:block; font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:5px;" }, "Email Petugas:"),
             el(
               "div",
               { style: "position:relative;" },
@@ -593,14 +605,14 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
                 type: "email",
                 required: "true",
                 value: loginEmail,
-                placeholder: "budi.santoso@aetra.co.id",
+                placeholder: "agus.setiawan@aetra.co.id",
                 style:
-                  "width:100%; box-sizing:border-box; padding:9px 12px 9px 34px; border-radius:8px; border:1px solid var(--border); font-size:12px; background:var(--bg); color:var(--ink); font-family:inherit; outline:none;",
+                  "width:100%; box-sizing:border-box; padding:10px 12px 10px 38px; border-radius:10px; border:1px solid #E2E8F0; font-size:12px; background:#F1F5F9; color:#1E293B; font-weight:600; font-family:inherit; outline:none;",
                 oninput: (e: any) => {
                   loginEmail = e.target.value;
                 },
               }),
-              el("span", { style: "position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:14px; opacity:0.6; pointer-events:none;" }, "✉️")
+              el("span", { style: "position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:14px; opacity:0.6; pointer-events:none;" }, "✉️")
             )
           ),
 
@@ -608,7 +620,7 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
           el(
             "div",
             {},
-            el("label", { style: "display:block; font-size:11px; font-weight:700; color:var(--ink); margin-bottom:4px;" }, "Kata Sandi:"),
+            el("label", { style: "display:block; font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:5px;" }, "Kata Sandi:"),
             el(
               "div",
               { style: "position:relative;" },
@@ -618,18 +630,18 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
                 value: loginPassword,
                 placeholder: "Masukkan kata sandi...",
                 style:
-                  "width:100%; box-sizing:border-box; padding:9px 36px 9px 34px; border-radius:8px; border:1px solid var(--border); font-size:12px; background:var(--bg); color:var(--ink); font-family:inherit; outline:none;",
+                  "width:100%; box-sizing:border-box; padding:10px 38px 10px 38px; border-radius:10px; border:1px solid #E2E8F0; font-size:12px; background:#F1F5F9; color:#1E293B; font-family:inherit; outline:none;",
                 oninput: (e: any) => {
                   loginPassword = e.target.value;
                 },
               }),
-              el("span", { style: "position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:14px; opacity:0.6; pointer-events:none;" }, "🔒"),
+              el("span", { style: "position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:14px; opacity:0.6; pointer-events:none;" }, "🔒"),
               el(
                 "button",
                 {
                   type: "button",
                   style:
-                    "position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; cursor:pointer; font-size:14px; padding:2px; opacity:0.7;",
+                    "position:absolute; right:10px; top:50%; transform:translateY(-50%); background:transparent; border:none; cursor:pointer; font-size:14px; padding:2px; opacity:0.7;",
                   title: showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi",
                   onclick: () => {
                     showPassword = !showPassword;
@@ -647,23 +659,23 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
             {
               type: "submit",
               disabled: loginLoading ? "true" : undefined,
-              style: `width:100%; margin-top:4px; padding:11px; border:none; border-radius:10px; background:linear-gradient(135deg, #0284C7 0%, #0369A1 100%); color:#FFFFFF; font-weight:800; font-size:13px; cursor:${loginLoading ? "not-allowed" : "pointer"}; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(2, 132, 199, 0.35);`,
+              style: `width:100%; margin-top:14px; padding:12px; border:none; border-radius:12px; background:linear-gradient(180deg, #0284C7 0%, #0369A1 100%); color:#FFFFFF; font-weight:800; font-size:13.5px; cursor:${loginLoading ? "not-allowed" : "pointer"}; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(2, 132, 199, 0.4);`,
             },
             loginLoading
               ? el("span", {}, "⏳ Memverifikasi Otentikasi...")
-              : el("span", {}, isSignUpMode ? "📝 Daftarkan Akun Baru" : "🔐 Masuk ke Antrean Work Order ➔")
+              : el("span", {}, isSignUpMode ? "📝 Daftarkan Akun Baru" : "🔓 Masuk ke Antrean Work Order ➔")
           ),
 
           // Mode toggle link
           el(
             "div",
-            { style: "text-align:center; margin-top:4px;" },
+            { style: "text-align:center; margin-top:8px;" },
             el(
               "button",
               {
                 type: "button",
                 style:
-                  "background:none; border:none; color:#0284C7; font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline;",
+                  "background:none; border:none; color:#0284C7; font-size:11.5px; font-weight:700; cursor:pointer; text-decoration:underline;",
                 onclick: () => {
                   isSignUpMode = !isSignUpMode;
                   loginError = "";
@@ -683,10 +695,10 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
           "div",
           {
             style:
-              "margin-top:18px; padding-top:12px; border-top:1px solid var(--border); font-size:10px; color:var(--ink-soft); text-align:center; line-height:1.4;",
+              "margin-top:20px; padding-top:14px; border-top:1px solid #E2E8F0; text-align:center; line-height:1.45;",
           },
-          el("div", { style: "font-weight:700; color:var(--ink);" }, "PT Aetra Air Tangerang"),
-          el("div", {}, "Aplikasi Resmi Petugas Lapangan Minor Repair • Otentikasi Supabase")
+          el("div", { style: "font-size:11px; font-weight:800; color:#1E293B;" }, "PT Aetra Air Tangerang"),
+          el("div", { style: "font-size:10px; color:#64748B; font-weight:500; margin-top:2px;" }, "Aplikasi Resmi Petugas Lapangan Minor Repair • Otentikasi Supabase")
         )
       )
     );
@@ -994,15 +1006,7 @@ export function initMobileOfficerApp(container: HTMLElement): () => void {
 
     if (!isLoggedIn) {
       const loginOverlay = renderLoginOverlay();
-      const loginRoot = el(
-        "div",
-        {
-          class: "mobile-native-app-root",
-          style: "min-height:75vh; background:var(--bg);",
-        },
-        loginOverlay
-      );
-      container.appendChild(wrapInNaturalMobileShell(loginRoot));
+      container.appendChild(loginOverlay);
       return;
     }
 
